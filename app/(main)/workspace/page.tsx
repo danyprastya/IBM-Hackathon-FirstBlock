@@ -1,8 +1,13 @@
 "use client";
 
 import { WorkspaceLayout } from "@/components/layout/WorkspaceLayout";
+import { ChatWindow } from "@/components/chat/ChatWindow";
+import { StickyBoard } from "@/components/sticky/StickyBoard";
+import { useChat } from "@/hooks/useChat";
 
 export default function WorkspacePage() {
+  const { messages, loading, isTyping, error, sendMessage } = useChat();
+
   return (
     <WorkspaceLayout>
       <div className="h-full flex">
@@ -13,46 +18,32 @@ export default function WorkspacePage() {
             <p className="text-sm text-text-secondary mt-1">
               Get personalized business advice and guidance
             </p>
+            {error && (
+              <div className="mt-3 p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-sm">
+                {error}
+              </div>
+            )}
           </div>
-          <div className="flex-1 flex items-center justify-center p-6">
-            <div className="text-center space-y-4 max-w-md">
-              <div className="w-16 h-16 mx-auto rounded-2xl bg-accent-primary/10 border border-accent-primary/20 flex items-center justify-center">
-                <div className="w-8 h-8 rounded-xl bg-accent-primary" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-text-primary mb-2">
-                  Welcome to FirstBlock
-                </h2>
-                <p className="text-text-secondary">
-                  Chat functionality will be available soon. Start by exploring your sticky notes or updating your profile.
-                </p>
-              </div>
-            </div>
+          <div className="flex-1 overflow-hidden">
+            <ChatWindow
+              messages={messages}
+              onSendMessage={sendMessage}
+              loading={loading}
+              isTyping={isTyping}
+            />
           </div>
         </div>
 
         {/* Sticky Notes Panel - 40% */}
-        <div className="w-[40%] h-full flex flex-col">
+        <div className="w-[40%] h-full flex flex-col overflow-hidden">
           <div className="p-6 border-b border-border">
             <h2 className="text-xl font-bold text-text-primary">Quick Notes</h2>
             <p className="text-sm text-text-secondary mt-1">
               Capture your ideas and insights
             </p>
           </div>
-          <div className="flex-1 flex items-center justify-center p-6">
-            <div className="text-center space-y-4 max-w-sm">
-              <div className="w-16 h-16 mx-auto rounded-2xl bg-accent-primary/10 border border-accent-primary/20 flex items-center justify-center">
-                <div className="w-8 h-8 rounded-xl bg-accent-primary" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-text-primary mb-2">
-                  No notes yet
-                </h3>
-                <p className="text-text-secondary text-sm">
-                  Sticky notes feature coming soon. You&apos;ll be able to create color-coded notes to organize your thoughts.
-                </p>
-              </div>
-            </div>
+          <div className="flex-1 overflow-y-auto p-6">
+            <StickyBoard />
           </div>
         </div>
       </div>
