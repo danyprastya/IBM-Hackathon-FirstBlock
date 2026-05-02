@@ -42,7 +42,7 @@ cat .devtools/generations.json | jq
 Or launch the web UI:
 
 ```bash
-npx @ai-sdk/devtools
+pnpx @ai-sdk/devtools
 # Open http://localhost:4983
 ```
 
