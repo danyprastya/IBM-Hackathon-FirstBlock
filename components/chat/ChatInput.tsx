@@ -3,6 +3,7 @@
 import { useState, KeyboardEvent } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -34,7 +35,7 @@ export function ChatInput({
   return (
     <div className="border-t border-border bg-bg-card p-4">
       <div className="flex gap-3 items-end">
-        <textarea
+        <Textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -42,7 +43,7 @@ export function ChatInput({
           disabled={disabled}
           rows={1}
           maxLength={2000}
-          className="flex-1 px-4 py-3 bg-bg-secondary border border-border rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent resize-none min-h-[48px] max-h-[120px]"
+          className="flex-1 resize-none min-h-[48px] max-h-[120px] bg-bg-secondary"
         />
         <Button
           onClick={handleSend}

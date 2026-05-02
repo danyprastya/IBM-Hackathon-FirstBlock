@@ -5,7 +5,9 @@ import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { TypingIndicator } from "./TypingIndicator";
 import { ChecklistBlock } from "./ChecklistBlock";
-import { Loader2 } from "lucide-react";
+import { MessageSquare } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export interface Message {
   id: string;
@@ -62,49 +64,59 @@ export function ChatWindow({
   return (
     <div className="flex flex-col h-full">
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center space-y-4">
-              <Loader2 className="w-8 h-8 mx-auto animate-spin text-accent-primary" />
-              <p className="text-text-secondary">Loading chat history...</p>
+      <ScrollArea className="flex-1 p-6">
+        <div className="space-y-6">
+          {loading ? (
+            <div className="space-y-6">
+              {/* Loading Skeletons */}
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-20 w-full" />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center space-y-4 max-w-md">
-              <div className="w-16 h-16 mx-auto rounded-2xl bg-accent-primary/10 border border-accent-primary/20 flex items-center justify-center">
-                <div className="w-8 h-8 rounded-xl bg-accent-primary" />
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold text-text-primary mb-2">
-                  Start Your Journey
-                </h3>
-                <p className="text-text-secondary">
-                  Ask me anything about starting your business. I&apos;m here to help you brainstorm ideas, validate concepts, and create actionable plans.
-                </p>
+          ) : messages.length === 0 ? (
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="text-center space-y-4 max-w-md px-4">
+                <div className="w-16 h-16 mx-auto rounded-2xl bg-accent-primary/10 border border-accent-primary/20 flex items-center justify-center">
+                  <MessageSquare className="w-8 h-8 text-accent-primary" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-text-primary mb-2">
+                    Start Your Journey
+                  </h3>
+                  <p className="text-text-secondary">
+                    Ask me anything about starting your business. I&apos;m here to help you brainstorm ideas, validate concepts, and create actionable plans.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <>
-            {messages.map((message) => (
-              <div key={message.id}>
-                <ChatMessage
-                  role={message.role}
-                  content={message.content}
-                  timestamp={message.timestamp}
-                />
-                {message.role === "assistant" && hasChecklist(message.content) && (
-                  <ChecklistBlock items={extractChecklistItems(message.content)} />
-                )}
-              </div>
-            ))}
-            {isTyping && <TypingIndicator />}
-            <div ref={messagesEndRef} />
-          </>
-        )}
-      </div>
+          ) : (
+            <>
+              {messages.map((message) => (
+                <div key={message.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <ChatMessage
+                    role={message.role}
+                    content={message.content}
+                    timestamp={message.timestamp}
+                  />
+                  {message.role === "assistant" && hasChecklist(message.content) && (
+                    <ChecklistBlock items={extractChecklistItems(message.content)} />
+                  )}
+                </div>
+              ))}
+              {isTyping && <TypingIndicator />}
+              <div ref={messagesEndRef} />
+            </>
+          )}
+        </div>
+      </ScrollArea>
 
       {/* Input Area */}
       <ChatInput
