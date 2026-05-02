@@ -10,14 +10,16 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   sendPasswordResetEmail,
+  updateProfile,
 } from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase/client";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, name: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -41,41 +43,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
-    } catch (error: any) {
-      throw new Error(error.message || "Failed to sign in");
+    } catch (error) {
+      const err = error as Error;
+      throw new Error(err.message || "Failed to sign in");
     }
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, name: string) => {
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-    } catch (error: any) {
-      throw new Error(error.message || "Failed to create account");
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Update user profile with display name
+      await updateProfile(user, { displayName: name });
+
+      // Create user document in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        email: user.email,
+        name: name,
+        onboardingCompleted: false,
+        createdAt: serverTimestamp(),
+      });
+    } catch (error) {
+      const err = error as Error;
+      throw new Error(err.message || "Failed to create account");
     }
   };
 
   const signInWithGoogle = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-    } catch (error: any) {
-      throw new Error(error.message || "Failed to sign in with Google");
+      const userCredential = await signInWithPopup(auth, provider);
+      const user = userCredential.user;
+
+      // Create user document if it doesn't exist (for new Google sign-ins)
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          email: user.email,
+          name: user.displayName || "User",
+          onboardingCompleted: false,
+          createdAt: serverTimestamp(),
+        },
+        { merge: true } // Only create if doesn't exist
+      );
+    } catch (error) {
+      const err = error as Error;
+      throw new Error(err.message || "Failed to sign in with Google");
     }
   };
 
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
-    } catch (error: any) {
-      throw new Error(error.message || "Failed to sign out");
+    } catch (error) {
+      const err = error as Error;
+      throw new Error(err.message || "Failed to sign out");
     }
   };
 
   const resetPassword = async (email: string) => {
     try {
       await sendPasswordResetEmail(auth, email);
-    } catch (error: any) {
-      throw new Error(error.message || "Failed to send reset email");
+    } catch (error) {
+      const err = error as Error;
+      throw new Error(err.message || "Failed to send reset email");
     }
   };
 
