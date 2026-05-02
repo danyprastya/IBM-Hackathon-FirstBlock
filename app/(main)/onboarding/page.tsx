@@ -109,7 +109,7 @@ export default function OnboardingPage() {
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold text-text-primary">
-            Let's get to know you
+            Let&apos;s get to know you
           </h1>
           <p className="text-text-secondary">
             Help us personalize your FirstBlock experience
@@ -337,7 +337,7 @@ export default function OnboardingPage() {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-text-primary">
-                  What's your biggest concern about starting a business?
+                  What&apos;s your biggest concern about starting a business?
                 </label>
                 <textarea
                   value={formData.concern}

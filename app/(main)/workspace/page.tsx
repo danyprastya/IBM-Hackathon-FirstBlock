@@ -49,7 +49,7 @@ export default function WorkspacePage() {
                   No notes yet
                 </h3>
                 <p className="text-text-secondary text-sm">
-                  Sticky notes feature coming soon. You'll be able to create color-coded notes to organize your thoughts.
+                  Sticky notes feature coming soon. You&apos;ll be able to create color-coded notes to organize your thoughts.
                 </p>
               </div>
             </div>
