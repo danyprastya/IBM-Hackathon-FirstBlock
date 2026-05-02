@@ -7,14 +7,42 @@ import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { APP_METADATA } from "@/lib/data/content";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
+import { COLLECTIONS } from "@/lib/firebase/collections";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn, signInWithGoogle, user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const checkOnboardingAndRedirect = async (userId: string) => {
+    try {
+      // Check if user has completed onboarding
+      const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, userId));
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        if (userData.onboardingCompleted) {
+          router.push("/workspace");
+        } else {
+          router.push("/onboarding");
+        }
+      } else {
+        // User document doesn't exist, redirect to onboarding
+        router.push("/onboarding");
+      }
+      router.refresh();
+    } catch (err) {
+      console.error("Error checking onboarding status:", err);
+      // Default to onboarding if there's an error
+      router.push("/onboarding");
+      router.refresh();
+    }
+  };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,11 +51,17 @@ export default function LoginPage() {
 
     try {
       await signIn(email, password);
-      router.push("/workspace");
+      // Wait a bit for cookie to be set and auth state to update
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Get the current user after sign in
+      const currentUser = (await import("@/lib/firebase/client")).auth.currentUser;
+      if (currentUser) {
+        await checkOnboardingAndRedirect(currentUser.uid);
+      }
     } catch (err) {
       const error = err as Error;
       setError(error.message || "Failed to sign in");
-    } finally {
       setLoading(false);
     }
   };
@@ -38,11 +72,17 @@ export default function LoginPage() {
 
     try {
       await signInWithGoogle();
-      router.push("/workspace");
+      // Wait a bit for cookie to be set and auth state to update
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Get the current user after sign in
+      const currentUser = (await import("@/lib/firebase/client")).auth.currentUser;
+      if (currentUser) {
+        await checkOnboardingAndRedirect(currentUser.uid);
+      }
     } catch (err) {
       const error = err as Error;
       setError(error.message || "Failed to sign in with Google");
-    } finally {
       setLoading(false);
     }
   };

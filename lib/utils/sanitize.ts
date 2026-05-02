@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // XSS sanitization utilities
 // Sanitize user input before storing to Firestore
 
@@ -6,16 +7,13 @@
  * Converts dangerous characters to HTML entities
  */
 export function sanitizeHtml(input: string): string {
-  const map: Record<string, string> = {
-    "&": "&",
-    "<": "<",
-    ">": ">",
-    '"': """,
-    "'": "&#x27;",
-    "/": "&#x2F;",
-  };
-
-  return input.replace(/[&<>"'/]/g, (char) => map[char] || char);
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;")
+    .replace(/\//g, "&#x2F;");
 }
 
 /**

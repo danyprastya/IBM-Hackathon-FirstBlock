@@ -32,8 +32,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
+      
+      // Set session cookie for middleware
+      if (user) {
+        const token = await user.getIdToken();
+        document.cookie = `__session=${token}; path=/; max-age=3600; samesite=strict`;
+      } else {
+        // Clear cookie on sign out
+        document.cookie = "__session=; path=/; max-age=0";
+      }
+      
       setLoading(false);
     });
 
