@@ -29,6 +29,8 @@ export interface Problem {
   createdAt: Date;
   /** Folder label — defaults to "Drafts". */
   folder?: string;
+  /** Whether this idea is pinned to the top. */
+  pinned?: boolean;
 }
 
 export interface Research {

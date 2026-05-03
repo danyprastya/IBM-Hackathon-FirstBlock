@@ -46,9 +46,20 @@ export const submitProblem = (input: { rawInput: string; folder?: string }) =>
 
 export const updateProblem = (
   problemId: string,
-  patchData: { title?: string; folder?: string }
+  patchData: { title?: string; folder?: string; pinned?: boolean }
 ) =>
   patch<{ success: true }>(`/api/agents/problems/${problemId}`, patchData);
+
+export const togglePin = async (
+  uid: string,
+  problemId: string,
+  currentlyPinned: boolean
+) => {
+  await updateDoc(
+    doc(db, "users", uid, "problems", problemId),
+    { pinned: !currentlyPinned }
+  );
+};
 
 // ─── Define ───────────────────────────────────────────────────────
 

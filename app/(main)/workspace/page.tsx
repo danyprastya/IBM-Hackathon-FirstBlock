@@ -1,18 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { useUserData } from "@/hooks/useUserData";
 import { useProblems } from "@/hooks/useProblems";
-import { Search, Plus, ChevronRight, FolderOpen, FileText, Loader2, LayoutTemplate, Mic } from "lucide-react";
+import { Search, Plus, ChevronRight, FolderOpen, FileText, Loader2, LayoutTemplate, Mic, Pin, PinOff } from "lucide-react";
 import Link from "next/link";
 import { WorkspaceLayout } from "@/components/layout/WorkspaceLayout";
+import { actions } from "@/lib/store";
 
 function MobileHome() {
   const { user } = useAuth();
   const { userData } = useUserData();
   const { problems, folders, loading } = useProblems();
   const [searchQuery, setSearchQuery] = useState("");
+
+  const pinnedIdeas = problems.filter((p) => p.pinned);
+  const handleTogglePin = useCallback(async (problemId: string, pinned: boolean) => {
+    if (!user?.uid) return;
+    try { await actions.togglePin(user.uid, problemId, pinned); } catch (e) { console.error(e); }
+  }, [user?.uid]);
 
   const displayName = userData?.name || user?.displayName || "there";
   const firstName = displayName.split(" ")[0];
@@ -58,6 +65,36 @@ function MobileHome() {
         </div>
       </div>
 
+      {/* Pinned */}
+      {pinnedIdeas.length > 0 && (
+        <div className="px-6 pb-4">
+          <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <Pin className="size-3" /> Pinned
+          </h2>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-6">
+            {pinnedIdeas.map((item) => {
+              const title = item.title || item.rawInput.slice(0, 50) + (item.rawInput.length > 50 ? "…" : "");
+              return (
+                <div key={item.id} className="relative min-w-[160px] flex-shrink-0">
+                  <Link href={`/workspace/idea/${item.id}`} className="block p-4 bg-accent-soft/50 border border-accent-primary/20 rounded-xl card-hover cursor-pointer">
+                    <p className="text-xs text-text-muted">{item.createdAt.toLocaleDateString()}</p>
+                    <h3 className="text-sm font-semibold text-text-heading mt-1 leading-snug">{title}</h3>
+                    <span className="inline-block mt-3 px-2.5 py-1 bg-input-bg rounded-md text-xs text-text-secondary font-medium">{item.folder || "Drafts"}</span>
+                  </Link>
+                  <button
+                    onClick={() => handleTogglePin(item.id, !!item.pinned)}
+                    className="absolute top-2 right-2 p-1 rounded-md hover:bg-white/60 transition-colors"
+                    title="Unpin"
+                  >
+                    <PinOff className="size-3.5 text-accent-primary" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Recents */}
       <div className="px-6 pb-4">
         <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Recents</h2>
@@ -73,11 +110,20 @@ function MobileHome() {
             {recents.map((item) => {
               const title = item.title || item.rawInput.slice(0, 50) + (item.rawInput.length > 50 ? "…" : "");
               return (
-                <Link key={item.id} href={`/workspace/idea/${item.id}`} className="min-w-[160px] p-4 bg-white border border-gray-200 rounded-xl flex-shrink-0 card-hover cursor-pointer">
-                  <p className="text-xs text-text-muted">{item.createdAt.toLocaleDateString()}</p>
-                  <h3 className="text-sm font-semibold text-text-heading mt-1 leading-snug">{title}</h3>
-                  <span className="inline-block mt-3 px-2.5 py-1 bg-input-bg rounded-md text-xs text-text-secondary font-medium">{item.folder || "Drafts"}</span>
-                </Link>
+                <div key={item.id} className="relative min-w-[160px] flex-shrink-0">
+                  <Link href={`/workspace/idea/${item.id}`} className="block p-4 bg-white border border-gray-200 rounded-xl card-hover cursor-pointer">
+                    <p className="text-xs text-text-muted">{item.createdAt.toLocaleDateString()}</p>
+                    <h3 className="text-sm font-semibold text-text-heading mt-1 leading-snug">{title}</h3>
+                    <span className="inline-block mt-3 px-2.5 py-1 bg-input-bg rounded-md text-xs text-text-secondary font-medium">{item.folder || "Drafts"}</span>
+                  </Link>
+                  <button
+                    onClick={() => handleTogglePin(item.id, !!item.pinned)}
+                    className="absolute top-2 right-2 p-1 rounded-md hover:bg-gray-100 transition-colors opacity-0 group-hover:opacity-100"
+                    title={item.pinned ? "Unpin" : "Pin"}
+                  >
+                    <Pin className={`size-3.5 ${item.pinned ? 'text-accent-primary' : 'text-text-muted'}`} />
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -124,6 +170,12 @@ function DesktopHome() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Morning" : hour < 17 ? "Afternoon" : "Evening";
   const recents = problems.slice(0, 10);
+  const pinnedIdeas = problems.filter((p) => p.pinned);
+
+  const handleTogglePin = useCallback(async (problemId: string, pinned: boolean) => {
+    if (!user?.uid) return;
+    try { await actions.togglePin(user.uid, problemId, pinned); } catch (e) { console.error(e); }
+  }, [user?.uid]);
 
   return (
     <div className="h-full overflow-y-auto p-8">
@@ -149,6 +201,38 @@ function DesktopHome() {
         </div> */}
       </div>
 
+      {/* Pinned */}
+      {pinnedIdeas.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold text-text-heading mb-4 flex items-center gap-1.5">
+            <Pin className="size-3.5 text-accent-primary" /> Pinned Ideas
+          </h2>
+          <div className="grid grid-cols-2 gap-3 stagger-fade">
+            {pinnedIdeas.map((item) => {
+              const title = item.title || item.rawInput.slice(0, 60) + (item.rawInput.length > 60 ? "…" : "");
+              return (
+                <div key={item.id} className="relative group">
+                  <Link href={`/workspace/idea/${item.id}`} className="block p-4 rounded-xl border border-accent-primary/20 bg-accent-soft/30 hover:border-accent-primary hover:bg-accent-soft transition-all card-hover cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <Pin className="size-3.5 text-accent-primary flex-shrink-0" />
+                      <h3 className="text-sm font-semibold text-text-heading truncate">{title}</h3>
+                    </div>
+                    <p className="text-xs text-text-muted mt-2">{item.folder || "Drafts"} · {item.createdAt.toLocaleDateString()}</p>
+                  </Link>
+                  <button
+                    onClick={() => handleTogglePin(item.id, true)}
+                    className="absolute top-3 right-3 p-1 rounded-md hover:bg-white/80 transition-colors opacity-0 group-hover:opacity-100"
+                    title="Unpin"
+                  >
+                    <PinOff className="size-3.5 text-text-muted" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Recent activity */}
       <h2 className="text-sm font-semibold text-text-heading mb-4">Recent Activity</h2>
       {loading ? (
@@ -165,16 +249,28 @@ function DesktopHome() {
           {recents.map((item) => {
             const title = item.title || item.rawInput.slice(0, 60) + (item.rawInput.length > 60 ? "…" : "");
             return (
-              <Link key={item.id} href={`/workspace/idea/${item.id}`} className="flex items-center justify-between p-4 rounded-xl border border-gray-200 hover:border-accent-primary hover:bg-input-bg transition-all card-hover cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <FileText className="size-5 text-text-muted" />
-                  <div>
-                    <h3 className="text-sm font-semibold text-text-heading">{title}</h3>
-                    <p className="text-xs text-text-muted">{item.folder || "Drafts"} · {item.createdAt.toLocaleDateString()}</p>
+              <div key={item.id} className="relative group">
+                <Link href={`/workspace/idea/${item.id}`} className="flex items-center justify-between p-4 rounded-xl border border-gray-200 hover:border-accent-primary hover:bg-input-bg transition-all card-hover cursor-pointer">
+                  <div className="flex items-center gap-3">
+                    <FileText className="size-5 text-text-muted" />
+                    <div>
+                      <h3 className="text-sm font-semibold text-text-heading">{title}</h3>
+                      <p className="text-xs text-text-muted">{item.folder || "Drafts"} · {item.createdAt.toLocaleDateString()}</p>
+                    </div>
                   </div>
-                </div>
-                <ChevronRight className="size-4 text-text-muted" />
-              </Link>
+                  <div className="flex items-center gap-2">
+                    {item.pinned && <Pin className="size-3.5 text-accent-primary" />}
+                    <ChevronRight className="size-4 text-text-muted" />
+                  </div>
+                </Link>
+                <button
+                  onClick={() => handleTogglePin(item.id, !!item.pinned)}
+                  className="absolute top-1/2 -translate-y-1/2 right-12 p-1.5 rounded-md hover:bg-gray-100 transition-all opacity-0 group-hover:opacity-100"
+                  title={item.pinned ? "Unpin" : "Pin"}
+                >
+                  {item.pinned ? <PinOff className="size-3.5 text-accent-primary" /> : <Pin className="size-3.5 text-text-muted" />}
+                </button>
+              </div>
             );
           })}
         </div>

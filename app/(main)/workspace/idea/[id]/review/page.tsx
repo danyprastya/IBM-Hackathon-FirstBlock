@@ -7,7 +7,10 @@ import { WorkspaceLayout } from "@/components/layout/WorkspaceLayout";
 import { collection, query, orderBy, onSnapshot, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/contexts/AuthContext";
+import { useHighlights } from "@/hooks/useHighlights";
+import { HighlightableText } from "@/components/workspace/HighlightableText";
 import type { ResearchDocument, Verdict } from "@/lib/firebase/collections";
+import type { Highlight } from "@/hooks/useHighlights";
 
 function useResearches(problemId: string) {
   const { user } = useAuth();
@@ -83,9 +86,12 @@ interface BriefCardProps {
   selected: boolean;
   onSelect: () => void;
   disabled: boolean;
+  highlights: Highlight[];
+  onAddHighlight: (input: Omit<Highlight, "id" | "createdAt">) => void;
+  onRemoveHighlight: (id: string) => void;
 }
 
-function BriefCard({ research, index, selected, onSelect, disabled }: BriefCardProps) {
+function BriefCard({ research, index, selected, onSelect, disabled, highlights, onAddHighlight, onRemoveHighlight }: BriefCardProps) {
   const brief = research.brief;
   const isComplete = research.status === "complete";
   const hasDecision = research.founderDecision !== null;
@@ -140,14 +146,28 @@ function BriefCard({ research, index, selected, onSelect, disabled }: BriefCardP
           {brief.marketSignal && (
             <div>
               <h4 className="text-xs font-bold text-text-heading mb-0.5">Market signal</h4>
-              <p className="text-sm text-text-primary leading-relaxed">{brief.marketSignal}</p>
+              <HighlightableText
+                text={brief.marketSignal}
+                field={`research:${research.id}:marketSignal`}
+                highlights={highlights}
+                onAdd={onAddHighlight}
+                onRemove={onRemoveHighlight}
+                className="text-sm text-text-primary leading-relaxed"
+              />
             </div>
           )}
 
           {brief.painEvidence && (
             <div>
               <h4 className="text-xs font-bold text-text-heading mb-0.5">Pain evidence</h4>
-              <p className="text-sm text-text-primary leading-relaxed">{brief.painEvidence}</p>
+              <HighlightableText
+                text={brief.painEvidence}
+                field={`research:${research.id}:painEvidence`}
+                highlights={highlights}
+                onAdd={onAddHighlight}
+                onRemove={onRemoveHighlight}
+                className="text-sm text-text-primary leading-relaxed"
+              />
             </div>
           )}
 
@@ -165,7 +185,14 @@ function BriefCard({ research, index, selected, onSelect, disabled }: BriefCardP
 
           {brief.aiReason && (
             <div className="pt-1 border-t border-gray-100">
-              <p className="text-xs text-text-secondary italic">&ldquo;{brief.aiReason}&rdquo;</p>
+              <HighlightableText
+                text={brief.aiReason}
+                field={`research:${research.id}:aiReason`}
+                highlights={highlights}
+                onAdd={onAddHighlight}
+                onRemove={onRemoveHighlight}
+                className="text-xs text-text-secondary italic"
+              />
             </div>
           )}
         </div>
@@ -177,6 +204,7 @@ function BriefCard({ research, index, selected, onSelect, disabled }: BriefCardP
 function ReviewContent({ problemId }: { problemId: string }) {
   const router = useRouter();
   const { researches, loading } = useResearches(problemId);
+  const { highlights, addHighlight, removeHighlight } = useHighlights(problemId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -269,6 +297,9 @@ function ReviewContent({ problemId }: { problemId: string }) {
               selected={selectedId === r.id}
               onSelect={() => setSelectedId(r.id)}
               disabled={alreadyDecided}
+              highlights={highlights}
+              onAddHighlight={addHighlight}
+              onRemoveHighlight={removeHighlight}
             />
           ))}
         </div>

@@ -79,9 +79,11 @@ export default function LoginPage() {
         {/* Header */}
         <div className="text-center flex flex-col gap-2 items-center">
           <Link href="/" className="inline-block">
-            <div className="size-12 mx-auto mb-4 rounded-xl bg-accent-primary/10 border border-accent-primary/20 flex items-center justify-center">
-              <div className="size-6 rounded-lg bg-accent-primary" />
-            </div>
+            <img
+              src="/image/Logo2.png"
+              alt="FirstBlock"
+              className="size-12 mx-auto mb-4 object-contain"
+            />
           </Link>
           <h1 className="text-3xl font-bold text-text-heading">
             Welcome back
