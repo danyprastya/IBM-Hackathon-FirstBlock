@@ -462,6 +462,10 @@ export type {
   SuccessMetrics,
   PRD,
   Phase,
+  Verdict,
+  CompetitionLevel,
+  AgentStatus,
+  FounderDecision,
 } from "./types";
 
 // Made with Bob

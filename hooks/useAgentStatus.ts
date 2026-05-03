@@ -1,27 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  collection,
-  query,
-  orderBy,
-  onSnapshot,
-  doc,
-  Timestamp,
-  limit,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
-import { useAuth } from "@/lib/contexts/AuthContext";
-import type {
-  AgentStatus,
-  ResearchDocument,
-  SolutionCollectionDocument,
-  SolutionDocument,
-  MVPDocument,
-  SuccessMetricsDocument,
-  PRDDocument,
-  PhaseDocument,
-} from "@/lib/firebase/collections";
+import { useMemo } from "react";
+import { useResearches } from "./useResearches";
+import { useSolutionCollections } from "./useSolutionCollections";
+import { useSolutions } from "./useSolutions";
+import type { AgentStatus } from "@/lib/store";
 
 export type Stage = "discover" | "define" | "develop" | "scope" | "deliver";
 
@@ -42,172 +25,118 @@ export interface StageData {
   gateStatus: "locked" | "waiting" | "passed";
 }
 
+const STAGE_DEFAULTS: StageData[] = [
+  { key: "discover", label: "Discover", icon: "🔍", agents: [], gateStatus: "locked" },
+  { key: "define", label: "Define", icon: "📋", agents: [], gateStatus: "locked" },
+  { key: "develop", label: "Develop", icon: "⚡", agents: [], gateStatus: "locked" },
+  { key: "scope", label: "Scope", icon: "🎯", agents: [], gateStatus: "locked" },
+  { key: "deliver", label: "Deliver", icon: "📦", agents: [], gateStatus: "locked" },
+];
+
 /**
- * Listens to all agent activity for a given problem.
- * Reads researches, solutionCollections, solutions, mvps, metrics, prds, phases.
+ * Composed view of pipeline state for the AgentPanel sidebar.
+ *
+ * Reads the underlying state from the Zustand store via the per-stage hooks
+ * (useResearches, useSolutionCollections, useSolutions). Subscriptions are
+ * mounted by those hooks; this hook just shapes the data for the panel.
+ *
+ * Currently covers Discover, Define, Develop. Scope and Deliver are
+ * scaffolded as locked until UI for those stages is built and we add
+ * useMvps / useSuccessMetrics / usePrds / usePhases lookups here.
  */
 export function useAgentStatus(problemId: string | null) {
-  const { user } = useAuth();
-  const [stages, setStages] = useState<StageData[]>(getDefaultStages());
-  const [loading, setLoading] = useState(true);
+  const { researches, loading: rLoading } = useResearches(problemId);
 
-  useEffect(() => {
-    if (!user?.uid || !problemId) {
-      setStages(getDefaultStages());
-      setLoading(false);
-      return;
+  // Latest research drives the next layer.
+  const latestResearch = researches[researches.length - 1] ?? null;
+  const { collections, loading: scLoading } = useSolutionCollections(
+    problemId,
+    latestResearch?.id ?? null
+  );
+
+  const latestSc = collections[collections.length - 1] ?? null;
+  const { solutions, loading: solLoading } = useSolutions(
+    problemId,
+    latestResearch?.id ?? null,
+    latestSc?.id ?? null
+  );
+
+  const stages = useMemo<StageData[]>(() => {
+    const next: StageData[] = STAGE_DEFAULTS.map((s) => ({ ...s, agents: [] }));
+
+    // ── Discover: problem exists -> complete + gate passed
+    if (problemId) {
+      next[0].agents = [
+        {
+          id: "problem-dump",
+          name: "Problem dump received",
+          status: "complete",
+        },
+      ];
+      next[0].gateStatus = "passed";
     }
 
-    const unsubs: (() => void)[] = [];
-    const basePath = `users/${user.uid}/problems/${problemId}`;
+    // ── Define: ProblemResearch agents (one per research version, newest first)
+    next[1].agents = [...researches]
+      .reverse()
+      .map((r, i) => ({
+        id: r.id,
+        name: `ProblemResearchAgent #${researches.length - i}`,
+        status: r.status,
+        timestamp: r.createdAt,
+        decided: r.founderDecision !== null,
+      }));
+    {
+      const allComplete =
+        next[1].agents.length > 0 &&
+        next[1].agents.every((a) => a.status === "complete");
+      const anyDecided = next[1].agents.some((a) => a.decided);
+      next[1].gateStatus = anyDecided
+        ? "passed"
+        : allComplete
+        ? "waiting"
+        : "locked";
+    }
 
-    // ── Discover: problem exists → complete
-    const problemUnsub = onSnapshot(doc(db, basePath), (snap) => {
-      setStages((prev) => {
-        const next = [...prev];
-        const discover = { ...next[0] };
-        if (snap.exists()) {
-          discover.agents = [
-            {
-              id: "problem-dump",
-              name: "Problem dump received",
-              status: "complete" as const,
-              timestamp: snap.data()?.createdAt instanceof Timestamp
-                ? snap.data()?.createdAt.toDate()
-                : new Date(),
-            },
-          ];
-          discover.gateStatus = "passed";
-        }
-        next[0] = discover;
-        return next;
-      });
-      setLoading(false);
-    });
-    unsubs.push(problemUnsub);
-
-    // ── Define: researches subcollection
-    const researchQ = query(
-      collection(db, basePath, "researches"),
-      orderBy("createdAt", "desc")
-    );
-    const researchUnsub = onSnapshot(researchQ, (snap) => {
-      const agents: AgentRun[] = snap.docs.map((d, i) => {
-        const data = d.data();
-        return {
-          id: d.id,
-          name: `ProblemResearchAgent #${snap.docs.length - i}`,
-          status: (data.status || "running") as AgentStatus,
-          timestamp: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : undefined,
-          decided: data.founderDecision !== null && data.founderDecision !== undefined,
-        };
+    // ── Develop: SolutionGenerator + per-direction SolutionResearch
+    if (latestSc) {
+      const developAgents: AgentRun[] = [];
+      developAgents.push({
+        id: "sol-gen",
+        name: "SolutionGeneratorAgent",
+        status: latestSc.status,
+        timestamp: latestSc.createdAt,
       });
 
-      const allComplete = agents.length > 0 && agents.every((a) => a.status === "complete");
-      const anyDecided = agents.some((a) => a.decided);
+      const solAgents: AgentRun[] = [...solutions]
+        .reverse()
+        .map((s, i) => ({
+          id: s.id,
+          name: `SolutionResearchAgent #${solutions.length - i}`,
+          status: s.status === "pending" ? "idle" : s.status,
+          timestamp: s.createdAt,
+          decided: s.founderDecision !== null,
+        }));
 
-      setStages((prev) => {
-        const next = [...prev];
-        next[1] = {
-          ...next[1],
-          agents,
-          gateStatus: anyDecided ? "passed" : allComplete ? "waiting" : agents.length > 0 ? "locked" : "locked",
-        };
-        return next;
-      });
-    });
-    unsubs.push(researchUnsub);
+      next[2].agents = [...developAgents, ...solAgents];
+      const allDone =
+        next[2].agents.length > 0 &&
+        next[2].agents.every((a) => a.status === "complete");
+      const anyDecided = solAgents.some((a) => a.decided);
+      next[2].gateStatus = anyDecided
+        ? "passed"
+        : allDone
+        ? "waiting"
+        : "locked";
+    }
 
-    // ── Develop: solutionCollections → solutions
-    const scQ = query(
-      collection(db, basePath, "researches"),
-      orderBy("createdAt", "desc"),
-      limit(1)
-    );
-    const scUnsub = onSnapshot(scQ, (researchSnap) => {
-      if (researchSnap.empty) return;
+    return next;
+  }, [problemId, researches, latestSc, solutions]);
 
-      const latestResearch = researchSnap.docs[0];
-      const scPath = `${basePath}/researches/${latestResearch.id}/solutionCollections`;
-
-      const scInnerUnsub = onSnapshot(
-        query(collection(db, scPath), orderBy("createdAt", "desc")),
-        (scSnap) => {
-          const developAgents: AgentRun[] = [];
-
-          // SolutionGenerator
-          if (!scSnap.empty) {
-            const sc = scSnap.docs[0].data();
-            developAgents.push({
-              id: "sol-gen",
-              name: "SolutionGeneratorAgent",
-              status: (sc.status || "running") as AgentStatus,
-              timestamp: sc.createdAt instanceof Timestamp ? sc.createdAt.toDate() : undefined,
-            });
-          }
-
-          // Solutions inside latest collection
-          if (!scSnap.empty) {
-            const latestSc = scSnap.docs[0];
-            const solPath = `${scPath}/${latestSc.id}/solutions`;
-
-            const solUnsub = onSnapshot(
-              query(collection(db, solPath), orderBy("createdAt", "desc")),
-              (solSnap) => {
-                const solAgents: AgentRun[] = solSnap.docs.map((d, i) => {
-                  const data = d.data();
-                  return {
-                    id: d.id,
-                    name: `SolutionResearchAgent #${solSnap.docs.length - i}`,
-                    status: (data.status || "running") as AgentStatus,
-                    timestamp: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : undefined,
-                    decided: data.founderDecision !== null && data.founderDecision !== undefined,
-                  };
-                });
-
-                const allAgents = [...developAgents, ...solAgents];
-                const allDone = allAgents.length > 0 && allAgents.every((a) => a.status === "complete");
-                const anyDecided = solAgents.some((a) => a.decided);
-
-                setStages((prev) => {
-                  const next = [...prev];
-                  next[2] = {
-                    ...next[2],
-                    agents: allAgents,
-                    gateStatus: anyDecided ? "passed" : allDone ? "waiting" : allAgents.length > 0 ? "locked" : "locked",
-                  };
-                  return next;
-                });
-              }
-            );
-            unsubs.push(solUnsub);
-          } else {
-            setStages((prev) => {
-              const next = [...prev];
-              next[2] = { ...next[2], agents: developAgents, gateStatus: "locked" };
-              return next;
-            });
-          }
-        }
-      );
-      unsubs.push(scInnerUnsub);
-    });
-    unsubs.push(scUnsub);
-
-    return () => unsubs.forEach((u) => u());
-  }, [user?.uid, problemId]);
-
-  return { stages, loading };
-}
-
-function getDefaultStages(): StageData[] {
-  return [
-    { key: "discover", label: "Discover", icon: "🔍", agents: [], gateStatus: "locked" },
-    { key: "define", label: "Define", icon: "📋", agents: [], gateStatus: "locked" },
-    { key: "develop", label: "Develop", icon: "⚡", agents: [], gateStatus: "locked" },
-    { key: "scope", label: "Scope", icon: "🎯", agents: [], gateStatus: "locked" },
-    { key: "deliver", label: "Deliver", icon: "📦", agents: [], gateStatus: "locked" },
-  ];
+  return {
+    stages,
+    loading: rLoading || scLoading || solLoading,
+  };
 }
 
 // Made with Bob

@@ -121,36 +121,6 @@ export class AgentRouter {
   }
 
   /**
-   * Run Scope + Metrics agents in parallel.
-   */
-  static async defineScopeAndMetrics(
-    chosenSolution: string,
-    chosenProblem: string,
-    compactedContext: string,
-    founderProfile: AgentExecutionContext["founderProfile"],
-    userId: string
-  ) {
-    const scopeConfig = this.getConfig("Scope");
-    const metricsConfig = this.getConfig("Metrics");
-
-    const baseContext = {
-      userId,
-      stage: "scope" as const,
-      upstreamContext: compactedContext,
-      founderProfile,
-      specificInputs: {
-        chosenSolution,
-        chosenProblem,
-      },
-    };
-
-    return AgentExecutor.executeParallel(
-      [scopeConfig, metricsConfig],
-      [baseContext, { ...baseContext }]
-    );
-  }
-
-  /**
    * Run PRDWriter once.
    */
   static async writePRD(
@@ -181,31 +151,6 @@ export class AgentRouter {
     return AgentExecutor.execute(config, context);
   }
 
-  /**
-   * Run PhaseAgent sequentially — v1, v2, ..., complete.
-   */
-  static async writePhases(
-    versions: string[],
-    fullPrd: string,
-    compactedContext: string,
-    founderProfile: AgentExecutionContext["founderProfile"],
-    userId: string
-  ) {
-    const configs = versions.map(() => this.getConfig("Phase"));
-    const contexts: AgentExecutionContext[] = versions.map((version, i) => ({
-      userId,
-      stage: "deliver" as const,
-      upstreamContext: compactedContext,
-      founderProfile,
-      specificInputs: {
-        fullPrd,
-        version,
-        order: i + 1,
-      },
-    }));
-
-    return AgentExecutor.executeSequential(configs, contexts);
-  }
 }
 
 // Made with Bob
