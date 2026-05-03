@@ -34,15 +34,19 @@ export function Hero() {
 
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-          <Button asChild size="lg" className="min-w-[200px]">
-            <Link href="/register">
-              Get Started
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </Button>
-          <Button asChild variant="outline" size="lg" className="min-w-[200px]">
-            <Link href="/login">Sign In</Link>
-          </Button>
+          <Link
+            href="/register"
+            className="inline-flex items-center justify-center gap-2 min-w-[200px] px-6 py-3 rounded-lg bg-accent-primary text-white font-semibold hover:bg-accent-hover transition-colors"
+          >
+            Get Started
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+          <Link
+            href="/login"
+            className="inline-flex items-center justify-center min-w-[200px] px-6 py-3 rounded-lg border border-border text-text-heading font-semibold hover:bg-input-bg transition-colors"
+          >
+            Sign In
+          </Link>
         </div>
 
         {/* Subtle indicator */}

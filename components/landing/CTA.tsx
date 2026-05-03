@@ -18,17 +18,13 @@ export function CTA() {
               Join entrepreneurs who are turning their ideas into reality with AI-powered guidance
             </p>
             <div className="pt-4">
-              <Button
-                asChild
-                size="lg"
-                variant="secondary"
-                className="min-w-[200px] bg-white text-accent-primary hover:bg-white/90"
+              <Link
+                href="/register"
+                className="inline-flex items-center justify-center gap-2 min-w-[200px] px-6 py-3 rounded-lg bg-white text-accent-primary font-semibold hover:bg-white/90 transition-colors"
               >
-                <Link href="/register">
-                  Start Building Now
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </Button>
+                Start Building Now
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
           </div>
         </div>

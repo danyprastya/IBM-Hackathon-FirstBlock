@@ -1,51 +1,51 @@
 // Static content and data arrays for the application
 // Centralized content management - modify here to update frontend
 
-export const SKILLS_OPTIONS = [
-  "Technology & Programming",
-  "Marketing & Sales",
-  "Finance & Accounting",
-  "Operations & Logistics",
-  "Creative & Design",
-  "Customer Service",
-  "Project Management",
-  "Writing & Content",
-  "Teaching & Training",
-  "Healthcare",
-] as const;
-
-export const INTERESTS_OPTIONS = [
-  "Food & Beverage",
-  "Fashion & Apparel",
-  "Technology & Software",
-  "Education & Training",
-  "Health & Wellness",
-  "Retail & E-commerce",
-  "Professional Services",
-  "Entertainment & Media",
-  "Home & Garden",
-  "Travel & Hospitality",
-] as const;
+// ─── Onboarding Options (Figma-matched) ───────────────────────────
 
 export const EXPERIENCE_OPTIONS = [
-  { value: "never", label: "Never started a business" },
-  { value: "tried", label: "Have tried before" },
-  { value: "running", label: "Currently running a business" },
+  { value: "never", label: "This is my first time", emoji: "🌱" },
+  { value: "tried", label: "I've started something before", emoji: "🔄" },
+  { value: "running", label: "I'm running a business now", emoji: "🚀" },
+  { value: "experienced", label: "I have business experience but nothing active right now", emoji: "💡" },
 ] as const;
 
 export const CAPITAL_OPTIONS = [
-  { value: "<500", label: "Less than $500" },
-  { value: "500-2000", label: "$500 - $2,000" },
-  { value: "2000-10000", label: "$2,000 - $10,000" },
-  { value: "10000+", label: "More than $10,000" },
+  { value: "<500", label: "Just my time\n(under $100)" },
+  { value: "500-2000", label: "A small budget\n($500 – $2K)" },
+  { value: "2000-10000", label: "A moderate budget\n($2K – $10K)" },
+  { value: "10000+", label: "$10K+\nto invest" },
 ] as const;
 
 export const HOURS_OPTIONS = [
-  { value: "<10", label: "Less than 10 hours/week" },
-  { value: "10-20", label: "10-20 hours/week" },
-  { value: "20-40", label: "20-40 hours/week" },
-  { value: "fulltime", label: "Full-time (40+ hours/week)" },
+  { value: "<10", label: "A few hours\non the side" },
+  { value: "10-20", label: "Part-time\n(~10–20 hrs)" },
+  { value: "20-40", label: "Serious commitment\n(~20–40 hrs)" },
+  { value: "fulltime", label: "Full-time —\nI'm all in" },
 ] as const;
+
+export const SKILLS_OPTIONS = [
+  { label: "Tech & Programming", emoji: "💻" },
+  { label: "Marketing & Sales", emoji: "📣" },
+  { label: "Design & Creative", emoji: "🎨" },
+  { label: "Writing & Content", emoji: "✍️" },
+  { label: "Finance & Operations", emoji: "📊" },
+  { label: "People & Networking", emoji: "🤝" },
+  { label: "Hands-on & Building", emoji: "🔧" },
+  { label: "Teaching & Coaching", emoji: "🎓" },
+] as const;
+
+export const INTERESTS_OPTIONS = [
+  { label: "Food & Beverage", emoji: "🍔" },
+  { label: "Education", emoji: "🎁" },
+  { label: "Health & Fitness", emoji: "💪" },
+  { label: "E-commerce & Retail", emoji: "🏪" },
+  { label: "Home & Lifestyle", emoji: "🏠" },
+  { label: "B2B & Services", emoji: "🏢" },
+  { label: "Gaming & Entertainment", emoji: "🎮" },
+] as const;
+
+// ─── Landing Page Content ─────────────────────────────────────────
 
 export const LANDING_FEATURES = [
   {

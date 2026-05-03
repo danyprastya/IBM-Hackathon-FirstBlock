@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import {
   SKILLS_OPTIONS,
   INTERESTS_OPTIONS,
@@ -24,14 +23,16 @@ interface OnboardingData {
   goal: string;
 }
 
+const TOTAL_STEPS = 5;
+
 export default function OnboardingPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const [currentStep, setCurrentStep] = useState(1);
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const [formData, setFormData] = useState<OnboardingData>({
+  const [form, setForm] = useState<OnboardingData>({
     location: "",
     experience: "",
     capital: "",
@@ -42,373 +43,344 @@ export default function OnboardingPage() {
     goal: "",
   });
 
-  const totalSteps = 4;
+  const toggleItem = (arr: string[], item: string) =>
+    arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item];
 
-  const handleNext = () => {
-    if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1);
+  const isValid = () => {
+    switch (step) {
+      case 1: return form.location.trim() !== "" && form.experience !== "";
+      case 2: return form.capital !== "" && form.hoursPerWeek !== "";
+      case 3: return form.skills.length > 0;
+      case 4: return form.interests.length > 0;
+      case 5: return form.concern.trim() !== "" && form.goal.trim() !== "";
+      default: return false;
     }
-  };
-
-  const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const toggleArrayItem = (array: string[], item: string) => {
-    if (array.includes(item)) {
-      return array.filter((i) => i !== item);
-    }
-    return [...array, item];
   };
 
   const handleSubmit = async () => {
     setError("");
     setLoading(true);
-
     try {
-      const response = await fetch("/api/onboarding", {
+      const res = await fetch("/api/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(form),
       });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to save onboarding data");
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to save");
       }
-
       router.push("/workspace");
     } catch (err) {
-      const error = err as Error;
-      setError(error.message);
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
   };
 
-  const isStepValid = () => {
-    switch (currentStep) {
-      case 1:
-        return formData.location.trim() && formData.experience;
-      case 2:
-        return formData.capital && formData.hoursPerWeek;
-      case 3:
-        return formData.skills.length > 0 && formData.interests.length > 0;
-      case 4:
-        return formData.concern.trim() && formData.goal.trim();
-      default:
-        return false;
-    }
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 py-12">
-      <div className="w-full max-w-2xl space-y-8">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-text-primary">
-            Let&apos;s get to know you
-          </h1>
-          <p className="text-text-secondary">
-            Help us personalize your FirstBlock experience
-          </p>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm text-text-secondary">
-            <span>Step {currentStep} of {totalSteps}</span>
-            <span>{Math.round((currentStep / totalSteps) * 100)}%</span>
-          </div>
-          <div className="h-2 bg-bg-secondary rounded-full overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-white">
+      {/* Progress dots */}
+      <div className="px-8 pt-12 pb-4">
+        <div className="flex items-center justify-center gap-2">
+          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
             <div
-              className="h-full bg-accent-primary transition-all duration-300"
-              style={{ width: `${(currentStep / totalSteps) * 100}%` }}
+              key={i}
+              className={`h-1 rounded-full transition-all duration-300 ${
+                i < step
+                  ? "w-8 bg-accent-primary"
+                  : "w-6 bg-gray-200"
+              }`}
             />
-          </div>
+          ))}
         </div>
+      </div>
 
-        {/* Form Card */}
-        <div className="bg-bg-card border border-border rounded-2xl p-8 space-y-6">
-          {error && (
-            <div className="p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-sm">
-              {error}
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto px-8 pb-32">
+        {error && (
+          <div className="p-3 mb-4 rounded-xl bg-danger/10 border border-danger/20 text-danger text-sm">
+            {error}
+          </div>
+        )}
+
+        {/* ─── Step 1: About You ─────────────────────────────── */}
+        {step === 1 && (
+          <div className="space-y-8">
+            <div>
+              <h1 className="text-2xl font-bold text-text-heading leading-tight">
+                First, a little about you
+              </h1>
+              <p className="text-text-secondary text-sm mt-2">
+                This helps us tailor ideas to your market and experience level.
+              </p>
             </div>
-          )}
 
-          {/* Step 1: Background */}
-          {currentStep === 1 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-text-primary mb-4">
-                  Your Background
-                </h2>
+            {/* Location */}
+            <div className="space-y-2">
+              <h2 className="text-base font-semibold text-text-heading">
+                Where are you based?
+              </h2>
+              <input
+                type="text"
+                value={form.location}
+                onChange={(e) => setForm({ ...form, location: e.target.value })}
+                placeholder="City or country"
+                className="w-full px-0 py-2 bg-transparent border-b border-gray-200 text-text-heading placeholder:text-text-muted focus:outline-none focus:border-accent-primary transition-colors text-base"
+              />
+            </div>
+
+            {/* Experience — 2x2 card grid */}
+            <div className="space-y-3">
+              <h2 className="text-base font-semibold text-text-heading">
+                Where are you on your business journey?
+              </h2>
+              <div className="grid grid-cols-2 gap-3">
+                {EXPERIENCE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setForm({ ...form, experience: opt.value })}
+                    className={`p-4 rounded-xl border-2 text-center transition-all ${
+                      form.experience === opt.value
+                        ? "bg-input-selected border-accent-primary"
+                        : "bg-input-bg border-transparent"
+                    }`}
+                  >
+                    <span className="text-2xl block mb-2">{opt.emoji}</span>
+                    <span className="text-sm font-medium text-text-heading leading-snug">
+                      {opt.label}
+                    </span>
+                  </button>
+                ))}
               </div>
+            </div>
+          </div>
+        )}
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-text-primary">
-                  Where are you located? (City, Country)
-                </label>
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) =>
-                    setFormData({ ...formData, location: e.target.value })
+        {/* ─── Step 2: Resources ─────────────────────────────── */}
+        {step === 2 && (
+          <div className="space-y-8">
+            <div>
+              <h1 className="text-2xl font-bold text-text-heading leading-tight">
+                What are you working with?
+              </h1>
+              <p className="text-text-secondary text-sm mt-2">
+                No judgment here — great businesses have started with every budget and schedule.
+              </p>
+            </div>
+
+            {/* Capital — 2x2 */}
+            <div className="space-y-3">
+              <h2 className="text-base font-semibold text-text-heading">
+                How much could you invest to get started?
+              </h2>
+              <div className="grid grid-cols-2 gap-3">
+                {CAPITAL_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setForm({ ...form, capital: opt.value })}
+                    className={`p-4 rounded-xl border-2 text-center transition-all ${
+                      form.capital === opt.value
+                        ? "bg-input-selected border-accent-primary"
+                        : "bg-input-bg border-transparent"
+                    }`}
+                  >
+                    <span className="text-sm font-medium text-text-heading whitespace-pre-line leading-snug">
+                      {opt.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Hours — 2x2 */}
+            <div className="space-y-3">
+              <h2 className="text-base font-semibold text-text-heading">
+                How much time can you put in each week?
+              </h2>
+              <div className="grid grid-cols-2 gap-3">
+                {HOURS_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setForm({ ...form, hoursPerWeek: opt.value })}
+                    className={`p-4 rounded-xl border-2 text-center transition-all ${
+                      form.hoursPerWeek === opt.value
+                        ? "bg-input-selected border-accent-primary"
+                        : "bg-input-bg border-transparent"
+                    }`}
+                  >
+                    <span className="text-sm font-medium text-text-heading whitespace-pre-line leading-snug">
+                      {opt.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Step 3: Skills ────────────────────────────────── */}
+        {step === 3 && (
+          <div className="space-y-8">
+            <div>
+              <h1 className="text-2xl font-bold text-text-heading leading-tight">
+                What do you bring to the table?
+              </h1>
+              <p className="text-text-secondary text-sm mt-2">
+                We&apos;ll suggest ideas that play to your strengths and match what excites you
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <h2 className="text-base font-semibold text-text-heading">
+                What are you good at? Pick all that fit
+              </h2>
+              <div className="grid grid-cols-3 gap-3">
+                {SKILLS_OPTIONS.map((skill) => (
+                  <button
+                    key={skill.label}
+                    type="button"
+                    onClick={() =>
+                      setForm({ ...form, skills: toggleItem(form.skills, skill.label) })
+                    }
+                    className={`p-3 rounded-xl border-2 text-center transition-all ${
+                      form.skills.includes(skill.label)
+                        ? "bg-input-selected border-accent-primary"
+                        : "bg-input-bg border-transparent"
+                    }`}
+                  >
+                    <span className="text-2xl block mb-1">{skill.emoji}</span>
+                    <span className="text-xs font-medium text-text-heading leading-tight block">
+                      {skill.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Step 4: Interests ─────────────────────────────── */}
+        {step === 4 && (
+          <div className="space-y-8">
+            <div>
+              <h1 className="text-2xl font-bold text-text-heading leading-tight">
+                What industries excite you?
+                <br />
+                Pick a few.
+              </h1>
+              <p className="text-text-secondary text-sm mt-2">
+                Pick up to 5 that interest you most.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              {INTERESTS_OPTIONS.map((interest) => (
+                <button
+                  key={interest.label}
+                  type="button"
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      interests: toggleItem(form.interests, interest.label),
+                    })
                   }
-                  placeholder="e.g., Jakarta, Indonesia"
-                  className="w-full px-4 py-2 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-text-primary">
-                  Business experience
-                </label>
-                <div className="space-y-2">
-                  {EXPERIENCE_OPTIONS.map((option) => (
-                    <label
-                      key={option.value}
-                      className="flex items-center gap-3 p-3 bg-bg-secondary border border-border rounded-lg cursor-pointer hover:border-accent-primary transition-colors"
-                    >
-                      <input
-                        type="radio"
-                        name="experience"
-                        value={option.value}
-                        checked={formData.experience === option.value}
-                        onChange={(e) =>
-                          setFormData({ ...formData, experience: e.target.value })
-                        }
-                        className="w-4 h-4 text-accent-primary"
-                      />
-                      <span className="text-text-primary">{option.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+                  className={`px-4 py-2.5 rounded-full border-2 text-sm font-medium transition-all flex items-center gap-2 ${
+                    form.interests.includes(interest.label)
+                      ? "bg-input-selected border-accent-primary text-text-heading"
+                      : "bg-white border-gray-200 text-text-heading"
+                  }`}
+                >
+                  <span>{interest.emoji}</span>
+                  {interest.label}
+                </button>
+              ))}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Step 2: Resources */}
-          {currentStep === 2 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-text-primary mb-4">
-                  Your Resources
-                </h2>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-text-primary">
-                  Starting capital available
-                </label>
-                <div className="space-y-2">
-                  {CAPITAL_OPTIONS.map((option) => (
-                    <label
-                      key={option.value}
-                      className="flex items-center gap-3 p-3 bg-bg-secondary border border-border rounded-lg cursor-pointer hover:border-accent-primary transition-colors"
-                    >
-                      <input
-                        type="radio"
-                        name="capital"
-                        value={option.value}
-                        checked={formData.capital === option.value}
-                        onChange={(e) =>
-                          setFormData({ ...formData, capital: e.target.value })
-                        }
-                        className="w-4 h-4 text-accent-primary"
-                      />
-                      <span className="text-text-primary">{option.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-text-primary">
-                  Time you can commit per week
-                </label>
-                <div className="space-y-2">
-                  {HOURS_OPTIONS.map((option) => (
-                    <label
-                      key={option.value}
-                      className="flex items-center gap-3 p-3 bg-bg-secondary border border-border rounded-lg cursor-pointer hover:border-accent-primary transition-colors"
-                    >
-                      <input
-                        type="radio"
-                        name="hoursPerWeek"
-                        value={option.value}
-                        checked={formData.hoursPerWeek === option.value}
-                        onChange={(e) =>
-                          setFormData({ ...formData, hoursPerWeek: e.target.value })
-                        }
-                        className="w-4 h-4 text-accent-primary"
-                      />
-                      <span className="text-text-primary">{option.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+        {/* ─── Step 5: Motivation ────────────────────────────── */}
+        {step === 5 && (
+          <div className="space-y-8">
+            <div>
+              <h1 className="text-2xl font-bold text-text-heading leading-tight">
+                One last thing — what&apos;s driving you?
+              </h1>
+              <p className="text-text-secondary text-sm mt-2">
+                Be honest — this is just between you and your AI co-founder.
+              </p>
             </div>
-          )}
 
-          {/* Step 3: Skills & Interests */}
-          {currentStep === 3 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-text-primary mb-4">
-                  Skills & Interests
-                </h2>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-text-primary">
-                  Your skills (select all that apply)
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {SKILLS_OPTIONS.map((skill) => (
-                    <label
-                      key={skill}
-                      className={`flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors ${
-                        formData.skills.includes(skill)
-                          ? "bg-accent-primary/10 border-accent-primary"
-                          : "bg-bg-secondary border-border hover:border-accent-primary"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.skills.includes(skill)}
-                        onChange={() =>
-                          setFormData({
-                            ...formData,
-                            skills: toggleArrayItem(formData.skills, skill),
-                          })
-                        }
-                        className="w-4 h-4 text-accent-primary"
-                      />
-                      <span className="text-sm text-text-primary">{skill}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-text-primary">
-                  Areas of interest (select all that apply)
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {INTERESTS_OPTIONS.map((interest) => (
-                    <label
-                      key={interest}
-                      className={`flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors ${
-                        formData.interests.includes(interest)
-                          ? "bg-accent-primary/10 border-accent-primary"
-                          : "bg-bg-secondary border-border hover:border-accent-primary"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.interests.includes(interest)}
-                        onChange={() =>
-                          setFormData({
-                            ...formData,
-                            interests: toggleArrayItem(formData.interests, interest),
-                          })
-                        }
-                        className="w-4 h-4 text-accent-primary"
-                      />
-                      <span className="text-sm text-text-primary">{interest}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+            <div className="space-y-2">
+              <h2 className="text-base font-semibold text-text-heading">
+                What&apos;s your biggest worry about starting?
+              </h2>
+              <textarea
+                value={form.concern}
+                onChange={(e) => setForm({ ...form, concern: e.target.value })}
+                placeholder="e.g., I'm afraid I'll invest time and money into something nobody wants"
+                rows={3}
+                className="w-full px-0 py-2 bg-transparent border-b border-gray-200 text-text-heading placeholder:text-text-muted focus:outline-none focus:border-accent-primary transition-colors text-base resize-none"
+              />
             </div>
-          )}
 
-          {/* Step 4: Goals & Concerns */}
-          {currentStep === 4 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-text-primary mb-4">
-                  Your Goals
-                </h2>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-text-primary">
-                  What&apos;s your biggest concern about starting a business?
-                </label>
-                <textarea
-                  value={formData.concern}
-                  onChange={(e) =>
-                    setFormData({ ...formData, concern: e.target.value })
-                  }
-                  placeholder="e.g., Not sure if my idea will work, worried about funding..."
-                  rows={3}
-                  className="w-full px-4 py-2 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent resize-none"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-text-primary">
-                  What do you want to achieve in the next year?
-                </label>
-                <textarea
-                  value={formData.goal}
-                  onChange={(e) =>
-                    setFormData({ ...formData, goal: e.target.value })
-                  }
-                  placeholder="e.g., Launch my first product, generate side income..."
-                  rows={3}
-                  className="w-full px-4 py-2 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent resize-none"
-                />
-              </div>
+            <div className="space-y-2">
+              <h2 className="text-base font-semibold text-text-heading">
+                What does success look like a year from now?
+              </h2>
+              <textarea
+                value={form.goal}
+                onChange={(e) => setForm({ ...form, goal: e.target.value })}
+                placeholder="e.g., Have a running online store making $2K/month"
+                rows={3}
+                className="w-full px-0 py-2 bg-transparent border-b border-gray-200 text-text-heading placeholder:text-text-muted focus:outline-none focus:border-accent-primary transition-colors text-base resize-none"
+              />
             </div>
-          )}
+          </div>
+        )}
+      </div>
 
-          {/* Navigation Buttons */}
-          <div className="flex justify-between pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleBack}
-              disabled={currentStep === 1 || loading}
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </Button>
+      {/* Fixed bottom nav */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-8 py-6 flex items-center gap-4">
+        {step > 1 && (
+          <button
+            type="button"
+            onClick={() => setStep(step - 1)}
+            className="px-6 py-3.5 rounded-2xl border border-gray-200 text-text-heading font-semibold text-sm"
+          >
+            Back
+          </button>
+        )}
 
-            {currentStep < totalSteps ? (
-              <Button
-                type="button"
-                onClick={handleNext}
-                disabled={!isStepValid() || loading}
-              >
-                Next
-                <ArrowRight className="w-4 h-4" />
-              </Button>
+        {step < TOTAL_STEPS ? (
+          <button
+            type="button"
+            onClick={() => setStep(step + 1)}
+            disabled={!isValid()}
+            className="flex-1 py-3.5 rounded-2xl bg-accent-primary text-white font-semibold text-base disabled:opacity-40 active:scale-[0.98] transition-transform"
+          >
+            Next
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!isValid() || loading}
+            className="flex-1 py-3.5 rounded-2xl bg-accent-primary text-white font-semibold text-base disabled:opacity-40 active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Saving...
+              </>
             ) : (
-              <Button
-                type="button"
-                onClick={handleSubmit}
-                disabled={!isStepValid() || loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    Complete
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </Button>
+              "Finish"
             )}
-          </div>
-        </div>
+          </button>
+        )}
       </div>
     </div>
   );

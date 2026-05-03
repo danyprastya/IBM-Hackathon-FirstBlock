@@ -65,7 +65,7 @@ export function StickyNote({
         </Button>
         
         <AlertDialog>
-          <AlertDialogTrigger asChild>
+          <AlertDialogTrigger>
             <Button
               size="sm"
               variant="ghost"
