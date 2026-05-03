@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Sparkles, Loader2, Download } from "lucide-react";
 import { WorkspaceLayout } from "@/components/layout/WorkspaceLayout";
 import { useProblems } from "@/hooks/useProblems";
+import { actions } from "@/lib/store";
 
 function MobileNewIdea() {
   const router = useRouter();
@@ -32,17 +33,7 @@ function MobileNewIdea() {
     }
 
     try {
-      const res = await fetch("/api/research/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ problemId: id, problemStatement: ideaText.trim() }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        console.error("Research start failed:", res.status, data);
-        setResearching(false);
-        return;
-      }
+      await actions.startProblemResearch({ problemId: id, rawInput: ideaText.trim() });
     } catch (err) {
       console.error("Research trigger error:", err);
       setResearching(false);

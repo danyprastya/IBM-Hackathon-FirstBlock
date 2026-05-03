@@ -1,43 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
-import { PATHS, ResearchDocument } from "@/lib/firebase/collections";
+import { useEffect } from "react";
 import { useAuth } from "@/lib/contexts/AuthContext";
+import {
+  usePipelineStore,
+  subscriptions,
+  selectors,
+} from "@/lib/store";
+import type { Research } from "@/lib/store";
 
+/**
+ * Live single research doc. Subscribes to the parent's research list and
+ * picks the matching id (so concurrent components share one listener).
+ */
 export function useResearch(problemId: string | null, researchId: string | null) {
   const { user } = useAuth();
-  const [research, setResearch] = useState<ResearchDocument | null>(null);
-  const [loading, setLoading] = useState<boolean>(Boolean(problemId && researchId));
-  const [error, setError] = useState<string | null>(null);
+  const uid = user?.uid ?? null;
 
   useEffect(() => {
-    if (!user || !problemId || !researchId) {
-      setResearch(null);
-      setLoading(false);
-      return;
-    }
+    if (!uid || !problemId) return;
+    return subscriptions.researches(uid, problemId);
+  }, [uid, problemId]);
 
-    setLoading(true);
-    setError(null);
+  const list = usePipelineStore(
+    selectors.selectResearches(problemId ?? "")
+  );
+  const loading = usePipelineStore(
+    selectors.selectLoading(`researches:${uid ?? ""}:${problemId ?? ""}`)
+  );
+  const error = usePipelineStore(
+    selectors.selectError(`researches:${uid ?? ""}:${problemId ?? ""}`)
+  );
 
-    const ref = doc(db, PATHS.research(user.uid, problemId, researchId));
-    const unsubscribe = onSnapshot(
-      ref,
-      (snap) => {
-        setResearch(snap.exists() ? (snap.data() as ResearchDocument) : null);
-        setLoading(false);
-      },
-      (err) => {
-        console.error("useResearch listener error:", err);
-        setError(err.message);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [user, problemId, researchId]);
+  const research: Research | null = researchId
+    ? list.find((r) => r.id === researchId) ?? null
+    : null;
 
   return { research, loading, error };
 }
+
+// Made with Bob

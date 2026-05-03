@@ -4,71 +4,33 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Clock, Download, Sparkles, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { WorkspaceLayout } from "@/components/layout/WorkspaceLayout";
-import { doc, onSnapshot, collection, query, orderBy, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/contexts/AuthContext";
-import type { ProblemDocument, ResearchDocument } from "@/lib/firebase/collections";
+import { useProblems } from "@/hooks/useProblems";
+import { useResearches } from "@/hooks/useResearches";
+import { subscriptions, actions } from "@/lib/store";
+import type { Problem, Research } from "@/lib/store";
 
 function useIdeaData(ideaId: string) {
   const { user } = useAuth();
-  const [problem, setProblem] = useState<ProblemDocument | null>(null);
-  const [researches, setResearches] = useState<ResearchDocument[]>([]);
-  const [loading, setLoading] = useState(true);
 
+  // Single-doc subscription so we hydrate even if /workspace hasn't been visited.
   useEffect(() => {
     if (!user?.uid || !ideaId) return;
-
-    // Listen to problem doc
-    const problemUnsub = onSnapshot(
-      doc(db, "users", user.uid, "problems", ideaId),
-      (snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          setProblem({
-            id: snap.id,
-            rawInput: data.rawInput || "",
-            // Migration-safe: prefer new `title`, fall back to legacy `cleanedStatement`.
-            title: data.title || data.cleanedStatement || "",
-            folder: data.folder,
-            inputType: data.inputType || "text",
-            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
-          });
-        }
-        setLoading(false);
-      }
-    );
-
-    // Listen to researches subcollection
-    const researchQ = query(
-      collection(db, "users", user.uid, "problems", ideaId, "researches"),
-      orderBy("createdAt", "desc")
-    );
-    const researchUnsub = onSnapshot(researchQ, (snap) => {
-      setResearches(
-        snap.docs.map((d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
-            status: data.status || "running",
-            brief: data.brief || {},
-            founderDecision: data.founderDecision || null,
-            compactedContext: data.compactedContext || "",
-          } as ResearchDocument;
-        })
-      );
-    });
-
-    return () => {
-      problemUnsub();
-      researchUnsub();
-    };
+    return subscriptions.problem(user.uid, ideaId);
   }, [user?.uid, ideaId]);
+
+  const { problems, loading: problemsLoading } = useProblems();
+  const { researches: ascResearches, loading: researchesLoading } = useResearches(ideaId || null);
+
+  const problem: Problem | null = problems.find((p) => p.id === ideaId) ?? null;
+  // Idea page renders newest-first.
+  const researches: Research[] = [...ascResearches].reverse();
+  const loading = problemsLoading || researchesLoading;
 
   return { problem, researches, loading };
 }
 
-function ResearchBriefCard({ research }: { research: ResearchDocument }) {
+function ResearchBriefCard({ research }: { research: Research }) {
   const statusIcon = research.status === "complete"
     ? <CheckCircle2 className="w-4 h-4 text-success" />
     : research.status === "running"
@@ -143,18 +105,10 @@ function MobileIdeaDocument({ ideaId }: { ideaId: string }) {
     if (!problem) return;
     setTriggeringResearch(true);
     try {
-      const res = await fetch("/api/research/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          problemId: ideaId,
-          problemStatement: problem.rawInput,
-        }),
+      await actions.startProblemResearch({
+        problemId: ideaId,
+        rawInput: problem.rawInput,
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        console.error("Research start failed:", res.status, data);
-      }
     } catch (err) {
       console.error("Research trigger error:", err);
     }
@@ -252,18 +206,10 @@ function DesktopIdeaDocument({ ideaId }: { ideaId: string }) {
     if (!problem) return;
     setTriggeringResearch(true);
     try {
-      const res = await fetch("/api/research/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          problemId: ideaId,
-          problemStatement: problem.rawInput,
-        }),
+      await actions.startProblemResearch({
+        problemId: ideaId,
+        rawInput: problem.rawInput,
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        console.error("Research start failed:", res.status, data);
-      }
     } catch (err) {
       console.error("Research trigger error:", err);
     }
