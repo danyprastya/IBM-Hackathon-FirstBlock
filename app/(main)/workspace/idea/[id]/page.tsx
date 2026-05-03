@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { ArrowLeft, Clock, Download, Sparkles, Loader2, CheckCircle2, AlertCircle, Pencil, X, Save } from "lucide-react";
 import { WorkspaceLayout } from "@/components/layout/WorkspaceLayout";
 import { doc, updateDoc } from "firebase/firestore";
@@ -115,6 +115,7 @@ function ResearchBriefCard({ research }: { research: Research }) {
 
 function MobileIdeaDocument({ ideaId }: { ideaId: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const { problem, researches, loading } = useIdeaData(ideaId);
   const [showResearchSheet, setShowResearchSheet] = useState(false);
@@ -125,11 +126,23 @@ function MobileIdeaDocument({ ideaId }: { ideaId: string }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
 
+  const startEditing = useCallback(() => {
+    setEditHtml(problem?.htmlContent || (problem?.rawInput ? `<p>${problem.rawInput}</p>` : ""));
+    setEditing(true);
+  }, [problem]);
+
   useEffect(() => {
     if (problem && !editingTitle) {
       setTitleDraft(problem.title || problem.rawInput.slice(0, 60));
     }
   }, [problem, editingTitle]);
+
+  useEffect(() => {
+    if (searchParams.get("new") === "1" && problem && !editing) {
+      startEditing();
+      router.replace(`/workspace/idea/${ideaId}`);
+    }
+  }, [searchParams, problem, editing, router, ideaId, startEditing]);
 
   const handleSaveTitle = async () => {
     if (!user?.uid || !titleDraft.trim()) {
@@ -159,11 +172,6 @@ function MobileIdeaDocument({ ideaId }: { ideaId: string }) {
       console.error("Research trigger error:", err);
     }
     setTriggeringResearch(false);
-  };
-
-  const startEditing = () => {
-    setEditHtml(problem?.htmlContent || `<p>${problem?.rawInput || ""}</p>`);
-    setEditing(true);
   };
 
   const handleSaveEdit = async () => {
@@ -242,40 +250,48 @@ function MobileIdeaDocument({ ideaId }: { ideaId: string }) {
       </div>
 
       <div className="flex-1 px-6 pb-32">
+        {editingTitle ? (
+          <input
+            type="text"
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={handleSaveTitle}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSaveTitle();
+              if (e.key === "Escape") setEditingTitle(false);
+            }}
+            autoFocus
+            className="w-full text-2xl font-bold text-text-heading leading-tight mb-6 bg-transparent border-b border-accent-primary focus:outline-none"
+          />
+        ) : (
+          <div className="group flex items-center gap-2 mb-6">
+            <h1 className="text-2xl font-bold text-text-heading leading-tight">{title || "Untitled Project"}</h1>
+            <button
+              onClick={() => setEditingTitle(true)}
+              className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-input-bg rounded-lg transition-all text-text-muted"
+              title="Edit title"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {editing ? (
           <RichEditor
             content={editHtml}
             onChange={handleEditorChange}
-            placeholder="Edit your idea..."
+            placeholder="Start writing your idea here..."
           />
         ) : (
           <>
-            {editingTitle ? (
-              <input
-                type="text"
-                value={titleDraft}
-                onChange={(e) => setTitleDraft(e.target.value)}
-                onBlur={handleSaveTitle}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSaveTitle();
-                  if (e.key === "Escape") setEditingTitle(false);
-                }}
-                autoFocus
-                className="w-full text-2xl font-bold text-text-heading leading-tight mb-6 bg-transparent border-b border-accent-primary focus:outline-none"
-              />
-            ) : (
-              <div className="group flex items-center gap-2 mb-6">
-                <h1 className="text-2xl font-bold text-text-heading leading-tight">{title || "Untitled Project"}</h1>
-                <button
-                  onClick={() => setEditingTitle(true)}
-                  className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-input-bg rounded-lg transition-all text-text-muted"
-                  title="Edit title"
-                >
-                  <Pencil className="w-4 h-4" />
+            {(!problem.htmlContent && !problem.rawInput.trim()) ? (
+              <div className="flex flex-col items-center justify-center py-16 text-text-muted bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                <p className="mb-4 text-sm">This project board is empty.</p>
+                <button onClick={startEditing} className="px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 text-sm font-medium transition-colors text-text-heading">
+                  Start Writing
                 </button>
               </div>
-            )}
-            {problem.htmlContent ? (
+            ) : problem.htmlContent ? (
               <div
                 className="rich-editor-content"
                 dangerouslySetInnerHTML={{ __html: problem.htmlContent }}
@@ -324,6 +340,8 @@ function MobileIdeaDocument({ ideaId }: { ideaId: string }) {
 }
 
 function DesktopIdeaDocument({ ideaId }: { ideaId: string }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const { problem, researches, loading } = useIdeaData(ideaId);
   const [triggeringResearch, setTriggeringResearch] = useState(false);
@@ -465,53 +483,61 @@ function DesktopIdeaDocument({ ideaId }: { ideaId: string }) {
 
       {/* Document body */}
       <div className="flex-1 overflow-y-auto px-8 py-10">
+        {editingTitle ? (
+          <input
+            type="text"
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={handleSaveTitle}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSaveTitle();
+              if (e.key === "Escape") setEditingTitle(false);
+            }}
+            autoFocus
+            className="w-full text-3xl font-bold text-text-heading leading-tight mb-8 bg-transparent border-b border-accent-primary focus:outline-none"
+          />
+        ) : (
+          <div className="group flex items-center gap-2 mb-8">
+            <h1 className="text-3xl font-bold text-text-heading leading-tight">{title || "Untitled Project"}</h1>
+            <button
+              onClick={() => setEditingTitle(true)}
+              className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-input-bg rounded-lg transition-all text-text-muted"
+              title="Edit title"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {editing ? (
           <RichEditor
             content={editHtml}
             onChange={handleEditorChange}
-            placeholder="Edit your idea..."
+            placeholder="Start writing your idea here..."
           />
         ) : (
           <>
-            {editingTitle ? (
-              <input
-                type="text"
-                value={titleDraft}
-                onChange={(e) => setTitleDraft(e.target.value)}
-                onBlur={handleSaveTitle}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSaveTitle();
-                  if (e.key === "Escape") setEditingTitle(false);
-                }}
-                autoFocus
-                className="w-full text-3xl font-bold text-text-heading leading-tight mb-8 bg-transparent border-b border-accent-primary focus:outline-none"
-              />
-            ) : (
-              <div className="group flex items-center gap-2 mb-8">
-                <h1 className="text-3xl font-bold text-text-heading leading-tight">{title || "Untitled Project"}</h1>
-                <button
-                  onClick={() => setEditingTitle(true)}
-                  className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-input-bg rounded-lg transition-all text-text-muted"
-                  title="Edit title"
-                >
-                  <Pencil className="w-4 h-4" />
+            {(!problem.htmlContent && !problem.rawInput.trim()) ? (
+              <div className="flex flex-col items-center justify-center py-20 text-text-muted bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                <p className="mb-4 text-sm">This project board is empty.</p>
+                <button onClick={startEditing} className="px-5 py-2.5 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 text-sm font-medium transition-colors text-text-heading">
+                  Start Writing
                 </button>
               </div>
+            ) : (
+              <div className="mb-10">
+                {problem.htmlContent ? (
+                  <div
+                    className="rich-editor-content"
+                    dangerouslySetInnerHTML={{ __html: problem.htmlContent }}
+                  />
+                ) : (
+                  problem.rawInput.split("\n\n").map((p, i) => (
+                    <p key={i} className="text-base text-text-primary leading-[1.8] mb-5">{p}</p>
+                  ))
+                )}
+              </div>
             )}
-
-            {/* Rich content or raw dump */}
-            <div className="mb-10">
-              {problem.htmlContent ? (
-                <div
-                  className="rich-editor-content"
-                  dangerouslySetInnerHTML={{ __html: problem.htmlContent }}
-                />
-              ) : (
-                problem.rawInput.split("\n\n").map((p, i) => (
-                  <p key={i} className="text-base text-text-primary leading-[1.8] mb-5">{p}</p>
-                ))
-              )}
-            </div>
 
             {/* Research results inline */}
             {researches.length > 0 && (
@@ -537,7 +563,11 @@ export default function IdeaDocumentPage() {
   const ideaId = params.id as string;
 
   return (
-    <>
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-accent-primary" />
+      </div>
+    }>
       {/* Mobile only */}
       <div className="md:hidden">
         <MobileIdeaDocument ideaId={ideaId} />
@@ -548,7 +578,7 @@ export default function IdeaDocumentPage() {
           <DesktopIdeaDocument ideaId={ideaId} />
         </WorkspaceLayout>
       </div>
-    </>
+    </Suspense>
   );
 }
 

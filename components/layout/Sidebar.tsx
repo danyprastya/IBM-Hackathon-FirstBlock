@@ -871,7 +871,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                   setCreatingIdea(false);
                   setShowNewIdeaDialog(false);
                   setNewIdeaTitle("");
-                  if (id) router.push(`/workspace/idea/${id}`);
+                  if (id) router.push(`/workspace/idea/${id}?new=1`);
                 }
               }}
             />
@@ -892,7 +892,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 setCreatingIdea(false);
                 setShowNewIdeaDialog(false);
                 setNewIdeaTitle("");
-                if (id) router.push(`/workspace/idea/${id}`);
+                if (id) router.push(`/workspace/idea/${id}?new=1`);
               }}
               className="flex items-center justify-center min-w-[100px] px-4 py-2 text-sm font-medium bg-accent-primary text-white rounded-lg hover:bg-accent-hover transition-colors disabled:opacity-50"
             >
