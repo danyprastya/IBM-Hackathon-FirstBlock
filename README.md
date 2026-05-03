@@ -1,287 +1,35 @@
-# FirstBlock
+# FirstBlock: Business Idea Assistant
 
-AI-powered business idea assistant to help aspiring entrepreneurs lay their "first block" of business foundation.
+## Overview
+FirstBlock is an AI-powered business idea assistant built to help aspiring entrepreneurs navigate "day zero" of their startup journey. Many founders have raw concepts but lack the necessary structure, validation frameworks, and actionable next steps. FirstBlock bridges this gap by providing a professional, workspace environment integrated with an intelligent AI advisor. Its primary purpose is to help users brainstorm effectively, structure their concepts, and lay the critical "first block" of their business foundation.
 
-## 🚀 Quick Start
+## Core Problem & Solution
+**The Problem:** The initial phase of starting a business is often chaotic. Entrepreneurs struggle to organize their thoughts, conduct deep market research, and apply proven business frameworks without feeling overwhelmed.
 
-### 1. Install Dependencies
+**The Solution:** FirstBlock offers a unified platform that combines dynamic planning tools with an AI-driven advisor powered by IBM Watsonx. It transitions users from abstract ideas to concrete, structured business strategies through contextual chat, real-time data synchronization, and automated background research.
 
-```bash
-npm install
-```
+## Key Features
 
-### 2. Set Up Environment Variables
+- **Intelligent Workspace Environment:** A clean, structured interface that seamlessly integrates chat functionalities, planning tools, and real-time data synchronization for an uninterrupted workflow.
+- **AI Business Advisor:** Powered by IBM Watsonx.ai, the advisor provides context-aware brainstorming and strategy planning. It utilizes established business frameworks, such as the Lean Startup methodology and Business Model Canvas, to validate and refine user ideas.
+- **Automated Background Research:** FirstBlock handles complex, multi-step market and problem research tasks asynchronously via Trigger.dev. This allows the system to gather deep insights while the user focuses on other tasks.
+- **Visual Idea Organization:** Built-in sticky notes and dynamic checklist tracking allow users to visually organize their thoughts, iterate on plans, and maintain momentum.
+- **Adaptive Profile Context:** Through a tailored onboarding process, the AI advisor learns about the user's specific experience level, available capital, skills, and goals. All subsequent interactions and strategies are customized to fit this unique profile.
 
-Copy `.env.example` to `.env.local` and fill in your credentials:
+## Technology Stack
 
-```bash
-cp .env.example .env.local
-```
+- **Framework & Language:** Next.js 16+ (App Router) and TypeScript
+- **Styling:** Tailwind CSS 4 with shadcn/ui components
+- **AI Provider:** IBM Watsonx.ai (Server-side REST API integration)
+- **Authentication:** Firebase Auth (Client and Admin SDKs)
+- **Database:** Firebase Firestore (Client and Admin SDKs)
+- **Background Processing:** Trigger.dev v3 (for long-running agent tasks)
+- **State Management:** React Context and Custom Hooks
+- **Data Validation:** Zod
 
-Required variables:
-- Firebase credentials (client + admin)
-- IBM Watsonx API credentials
+## Security & Architecture
 
-### 3. **IMPORTANT: Deploy Firestore Rules**
-
-Before running the app, you MUST deploy Firestore security rules:
-
-```bash
-# Install Firebase CLI
-npm install -g firebase-tools
-
-# Login to Firebase
-firebase login
-
-# Initialize Firestore (if not done)
-firebase init firestore
-# Select your Firebase project
-# Use existing firestore.rules and firestore.indexes.json
-
-# Deploy rules and indexes
-firebase deploy --only firestore:rules
-firebase deploy --only firestore:indexes
-```
-
-**Without deploying rules, you'll get "missing or insufficient permissions" errors!**
-
-### 4. Run Development Server
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000)
-
----
-
-## 📁 Project Structure
-
-```
-firstblock/
-├── app/                      # Next.js App Router
-│   ├── (auth)/              # Auth pages (login, register)
-│   ├── (main)/              # Protected pages (workspace, onboarding)
-│   ├── api/                 # API routes
-│   │   ├── ai/             # Watsonx AI endpoints
-│   │   ├── onboarding/     # Onboarding data
-│   │   └── sticky/         # Sticky notes CRUD
-│   ├── layout.tsx          # Root layout with AuthProvider
-│   └── page.tsx            # Landing page
-├── components/
-│   ├── ui/                 # shadcn/ui components
-│   ├── chat/               # Chat UI components
-│   ├── sticky/             # Sticky notes components
-│   ├── layout/             # Sidebar, WorkspaceLayout
-│   └── landing/            # Landing page sections
-├── lib/
-│   ├── firebase/           # Firebase client + admin
-│   ├── watsonx/            # Watsonx AI client
-│   ├── contexts/           # React contexts (Auth)
-│   └── utils/              # Validators, sanitize, rate limit
-├── hooks/                  # Custom React hooks
-├── firestore.rules         # Firestore security rules
-├── firestore.indexes.json  # Firestore composite indexes
-└── DEPLOYMENT.md           # Full deployment guide
-```
-
----
-
-## 🔒 Security Features
-
-✅ **Authentication:** Firebase Auth (Email/Password + Google)  
-✅ **Authorization:** Firestore security rules (user-scoped queries)  
-✅ **Input Validation:** Zod schemas on all API routes  
-✅ **XSS Prevention:** Sanitization of all user inputs  
-✅ **CSRF Protection:** Origin/Referer header validation  
-✅ **IDOR Prevention:** User ID verification on all queries  
-✅ **Rate Limiting:** 30 requests/hour on AI endpoint  
-✅ **SSRF Protection:** Whitelisted external URLs only  
-✅ **Security Headers:** X-Frame-Options, CSP, etc.
-
----
-
-## 🎨 Features
-
-### 1. **AI Business Assistant**
-- Personalized advice based on user profile
-- Business idea suggestions ranked by feasibility
-- Structured action plans with numbered checklists
-- Powered by IBM Watsonx Granite 3-8B model
-
-### 2. **Onboarding System**
-- 4-step profile collection
-- Captures: location, experience, capital, skills, interests, time, concerns, goals
-- Data used to personalize all AI responses
-
-### 3. **Sticky Notes**
-- Create, edit, delete notes
-- 6 preset colors
-- Persistent storage in Firestore
-- Perfect for brainstorming
-
-### 4. **Chat History**
-- All conversations saved to Firestore
-- Load last 50 messages on workspace mount
-- Checklist detection and special rendering
-
----
-
-## 🛠️ Tech Stack
-
-- **Framework:** Next.js 14 (App Router) + TypeScript
-- **Styling:** Tailwind CSS + shadcn/ui
-- **AI:** IBM Watsonx.ai (Granite 3-8B)
-- **Auth:** Firebase Authentication
-- **Database:** Cloud Firestore
-- **Deployment:** Vercel
-- **State:** React Context + Zustand
-
----
-
-## 📦 Key Dependencies
-
-```json
-{
-  "next": "^15.1.6",
-  "react": "^19.0.0",
-  "firebase": "^11.2.0",
-  "firebase-admin": "^13.0.2",
-  "zod": "^3.24.1",
-  "tailwindcss": "^4.0.0"
-}
-```
-
----
-
-## 🚢 Deployment
-
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete deployment instructions.
-
-**Quick Deploy to Vercel:**
-
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel --prod
-```
-
-**Don't forget to:**
-1. Deploy Firestore rules first
-2. Set all environment variables in Vercel
-3. Add Vercel domain to Firebase authorized domains
-
----
-
-## 🐛 Troubleshooting
-
-### "Missing or insufficient permissions"
-**Cause:** Firestore rules not deployed  
-**Fix:** Run `firebase deploy --only firestore:rules`
-
-### "Failed to fetch" or CORS errors
-**Cause:** Firebase Auth domain not authorized  
-**Fix:** Add your domain to Firebase Console → Authentication → Settings → Authorized domains
-
-### Chat messages not saving
-**Cause:** Firestore indexes not created  
-**Fix:** Run `firebase deploy --only firestore:indexes`
-
----
-
-## 📝 Environment Variables
-
-### Client-side (NEXT_PUBLIC_)
-- `NEXT_PUBLIC_FIREBASE_API_KEY`
-- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
-- `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
-- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
-- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
-- `NEXT_PUBLIC_FIREBASE_APP_ID`
-
-### Server-side (SECRET)
-- `FIREBASE_CLIENT_EMAIL`
-- `FIREBASE_PRIVATE_KEY`
-- `WATSONX_API_KEY`
-- `WATSONX_API_URL`
-- `WATSONX_PROJECT_ID`
-
----
-
-## 🔐 Firestore Security Rules
-
-Rules ensure:
-- Users can only read/write their own data
-- All operations require authentication
-- Messages are immutable after creation
-- User documents can't be deleted via Firestore
-
-See `firestore.rules` for full implementation.
-
----
-
-## 📊 Firestore Collections
-
-### users
-```typescript
-{
-  email: string
-  name: string
-  onboardingCompleted: boolean
-  onboarding: {
-    location, experience, capital, skills,
-    interests, hoursPerWeek, concern, goal
-  }
-  rateLimit: { count, windowStart }
-  createdAt: timestamp
-}
-```
-
-### messages
-```typescript
-{
-  userId: string
-  role: "user" | "assistant"
-  content: string
-  timestamp: timestamp
-}
-```
-
-### stickies
-```typescript
-{
-  userId: string
-  content: string
-  color: string (hex)
-  createdAt: timestamp
-  updatedAt: timestamp
-}
-```
-
----
-
-## 🎯 Roadmap
-
-- [ ] Multiple projects per user
-- [ ] Export chat history
-- [ ] Business plan generator
-- [ ] Collaboration features
-- [ ] Mobile app
-
----
-
-## 📄 License
-
-MIT
-
----
-
-## 🤝 Contributing
-
-Contributions welcome! Please read AGENTS.md for development guidelines.
-
----
-
-**Built with IBM Bob** 🤖
+FirstBlock is built with robust security considerations:
+- **Authentication & Authorization:** All data access and API routes are strictly protected using Firebase Admin token verification. Firestore Security Rules enforce owner-only access for all collections.
+- **Data Protection:** State-mutating requests are protected against Cross-Site Request Forgery (CSRF). All user inputs are sanitized to prevent Cross-Site Scripting (XSS), and strict input validation is enforced via Zod schemas.
+- **API Security:** Server-Side Request Forgery (SSRF) mitigations are in place for AI API calls. Additionally, API rate limiting (tracked via Firestore) prevents abuse of the Watsonx endpoint.
