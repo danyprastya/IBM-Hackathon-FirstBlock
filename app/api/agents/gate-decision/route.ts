@@ -1,5 +1,6 @@
 // API route: Founder gate decisions (pick problem / pick solution)
 // POST /api/agents/gate-decision
+// After saving decision, auto-triggers the next stage's agents.
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/apiAuth";
@@ -8,6 +9,30 @@ import { sanitizeText } from "@/lib/utils/sanitize";
 import { adminDb } from "@/lib/firebase/admin";
 import { PATHS } from "@/lib/firebase/collections";
 import { FieldValue } from "firebase-admin/firestore";
+
+/**
+ * Fire-and-forget: trigger the next stage's agents via internal fetch.
+ * Errors are logged but do not block the gate response.
+ */
+async function chainNextStage(
+  baseUrl: string,
+  cookie: string,
+  endpoint: string,
+  body: Record<string, string>
+) {
+  try {
+    await fetch(`${baseUrl}${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: cookie,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    console.error(`Auto-chain ${endpoint} error:`, (err as Error).message);
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,9 +57,13 @@ export async function POST(req: NextRequest) {
       decidedAt: FieldValue.serverTimestamp(),
     };
 
+    // Derive base URL + cookie for internal chaining
+    const origin = req.headers.get("origin") || req.nextUrl.origin;
+    const cookie = req.headers.get("cookie") || "";
+
     // Determine which gate based on provided IDs
     if (solutionId && solutionCollectionId && researchId) {
-      // Develop gate — picking a solution
+      // ── Develop gate — picking a solution ──
       const solRef = adminDb.doc(
         PATHS.solution(
           userId, problemId, researchId, solutionCollectionId, solutionId
@@ -48,13 +77,27 @@ export async function POST(req: NextRequest) {
 
       await solRef.update({ founderDecision });
 
+      // Auto-chain → Scope stage (define-scope + define-metrics in parallel)
+      if (decision.verdict === "pursue") {
+        const chainBody = {
+          problemId,
+          researchId,
+          solutionCollectionId,
+          solutionId,
+        };
+        // Fire-and-forget: don't await — let them run async
+        chainNextStage(origin, cookie, "/api/agents/define-scope", chainBody);
+        chainNextStage(origin, cookie, "/api/agents/define-metrics", chainBody);
+      }
+
       return NextResponse.json({
         success: true,
         gate: "develop",
         chosenId: solutionId,
+        nextStage: decision.verdict === "pursue" ? "scope" : null,
       });
     } else if (researchId) {
-      // Define gate — picking a problem (via research)
+      // ── Define gate — picking a problem (via research) ──
       const resRef = adminDb.doc(
         PATHS.research(userId, problemId, researchId)
       );
@@ -66,10 +109,19 @@ export async function POST(req: NextRequest) {
 
       await resRef.update({ founderDecision });
 
+      // Auto-chain → Develop stage (generate solutions)
+      if (decision.verdict === "pursue") {
+        chainNextStage(origin, cookie, "/api/agents/generate-solutions", {
+          problemId,
+          researchId,
+        });
+      }
+
       return NextResponse.json({
         success: true,
         gate: "define",
         chosenId: researchId,
+        nextStage: decision.verdict === "pursue" ? "develop" : null,
       });
     } else {
       return NextResponse.json(
@@ -96,3 +148,4 @@ export async function POST(req: NextRequest) {
 }
 
 // Made with Bob
+
