@@ -50,4 +50,10 @@ firstblock-docs.md
 # design assets (local only)
 figma-design/
 
+# trigger.dev local dev runtime state
+.trigger/
+
+# claude code worktrees
+.claude/worktrees/
+
 !*.example
