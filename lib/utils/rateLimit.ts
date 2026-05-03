@@ -8,6 +8,31 @@ const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour in milliseconds
 const MAX_REQUESTS_PER_HOUR = 30;
 
 /**
+ * Safely convert a Firestore Timestamp, Date, number, or plain object
+ * into a millisecond timestamp. Returns 0 for undefined/null.
+ */
+function toMillis(value: unknown): number {
+  if (value == null) return 0;
+  if (typeof value === "number") return value;
+  if (value instanceof Date) return value.getTime();
+  // Firestore Admin Timestamp has toMillis() and toDate()
+  if (typeof (value as { toMillis?: () => number }).toMillis === "function") {
+    return (value as { toMillis: () => number }).toMillis();
+  }
+  // Firestore Timestamp-like plain object { seconds, nanoseconds }
+  if (
+    typeof (value as { seconds?: number }).seconds === "number" &&
+    typeof (value as { nanoseconds?: number }).nanoseconds === "number"
+  ) {
+    return (
+      (value as { seconds: number }).seconds * 1000 +
+      Math.floor((value as { nanoseconds: number }).nanoseconds / 1_000_000)
+    );
+  }
+  return 0;
+}
+
+/**
  * Check if user has exceeded rate limit
  * Returns true if rate limit exceeded, false otherwise
  */
@@ -23,7 +48,7 @@ export async function checkRateLimit(userId: string): Promise<boolean> {
 
     const userData = userDoc.data() as UserDocument;
     const now = Date.now();
-    const windowStart = userData.rateLimit?.windowStart?.getTime() || 0;
+    const windowStart = toMillis(userData.rateLimit?.windowStart);
     const count = userData.rateLimit?.count || 0;
 
     // Check if we're still in the same window
@@ -67,7 +92,7 @@ export async function incrementRateLimit(userId: string): Promise<void> {
 
     const userData = userDoc.data() as UserDocument;
     const now = Date.now();
-    const windowStart = userData.rateLimit?.windowStart?.getTime() || 0;
+    const windowStart = toMillis(userData.rateLimit?.windowStart);
     const count = userData.rateLimit?.count || 0;
 
     // Check if we need to reset the window
@@ -103,7 +128,7 @@ export async function getRemainingRequests(userId: string): Promise<number> {
 
     const userData = userDoc.data() as UserDocument;
     const now = Date.now();
-    const windowStart = userData.rateLimit?.windowStart?.getTime() || 0;
+    const windowStart = toMillis(userData.rateLimit?.windowStart);
     const count = userData.rateLimit?.count || 0;
 
     // Check if window has expired
