@@ -10,12 +10,12 @@ import type {
 } from "./types";
 import { AGENT_PROMPTS, UPSTREAM_CONTEXT_TEMPLATE } from "./prompts";
 import { WatsonxProvider } from "./providers/watsonx";
-import { StubSearchProvider } from "./tools";
+import { JinaSearchProvider } from "./tools";
 
 // ─── Default providers (swappable) ────────────────────────────────
 
 let aiProvider: AIProvider = new WatsonxProvider();
-let searchProvider: SearchToolProvider = new StubSearchProvider();
+let searchProvider: SearchToolProvider = new JinaSearchProvider();
 
 /** Swap AI provider — call this when AI SDK provider is ready */
 export function setAIProvider(provider: AIProvider) {
