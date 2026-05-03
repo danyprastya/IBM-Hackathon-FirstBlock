@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   PanelRightClose,
@@ -185,9 +186,12 @@ export function AgentPanel({ collapsed, onToggle }: AgentPanelProps) {
                           Gate Decision
                         </p>
                         <p className="text-xs text-text-primary">{gateLabel}</p>
-                        <button className="mt-2 w-full py-2 rounded-lg bg-accent-primary text-white text-xs font-semibold hover:bg-accent-hover transition-colors">
+                        <Link
+                          href={`/workspace/idea/${problemId}/review`}
+                          className="mt-2 block w-full py-2 rounded-lg bg-accent-primary text-white text-xs font-semibold hover:bg-accent-hover transition-colors text-center"
+                        >
                           Review Briefs
-                        </button>
+                        </Link>
                       </div>
                     )}
                   </div>
