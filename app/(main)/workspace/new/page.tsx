@@ -25,25 +25,30 @@ function MobileNewIdea() {
     if (!ideaText.trim()) return;
     setResearching(true);
 
-    // Step 1: Save the problem first
     const id = await createProblem(ideaText.trim());
     if (!id) {
       setResearching(false);
       return;
     }
 
-    // Step 2: Trigger the research agent
     try {
-      await fetch("/api/agents/problems", {
+      const res = await fetch("/api/research/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ problemId: id }),
+        body: JSON.stringify({ problemId: id, problemStatement: ideaText.trim() }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error("Research start failed:", res.status, data);
+        setResearching(false);
+        return;
+      }
     } catch (err) {
       console.error("Research trigger error:", err);
+      setResearching(false);
+      return;
     }
 
-    // Navigate to the idea — research will stream in via real-time listener
     router.push(`/workspace/idea/${id}`);
   };
 
@@ -120,13 +125,21 @@ function DesktopNewIdea() {
     if (!id) { setResearching(false); return; }
 
     try {
-      await fetch("/api/agents/problems", {
+      const res = await fetch("/api/research/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ problemId: id }),
+        body: JSON.stringify({ problemId: id, problemStatement: ideaText.trim() }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error("Research start failed:", res.status, data);
+        setResearching(false);
+        return;
+      }
     } catch (err) {
       console.error("Research trigger error:", err);
+      setResearching(false);
+      return;
     }
 
     router.push(`/workspace/idea/${id}`);
