@@ -7,6 +7,8 @@ import { WorkspaceLayout } from "@/components/layout/WorkspaceLayout";
 import { collection, query, orderBy, onSnapshot, Timestamp, limit, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/contexts/AuthContext";
+import { useHighlights } from "@/hooks/useHighlights";
+import { HighlightableText } from "@/components/workspace/HighlightableText";
 import type { PRDDocument, PhaseDocument } from "@/lib/firebase/collections";
 
 function usePRDData(problemId: string) {
@@ -93,6 +95,7 @@ function usePRDData(problemId: string) {
 function PRDContent({ problemId }: { problemId: string }) {
   const router = useRouter();
   const { prd, phases, loading } = usePRDData(problemId);
+  const { highlights, addHighlight, removeHighlight } = useHighlights(problemId);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -179,7 +182,17 @@ function PRDContent({ problemId }: { problemId: string }) {
                 if (line.trim() === "") {
                   return <div key={i} className="h-3" />;
                 }
-                return <p key={i} className="text-sm text-text-primary leading-[1.8] mb-2">{line}</p>;
+                return (
+                  <HighlightableText
+                    key={i}
+                    text={line}
+                    field={`prd:line:${i}`}
+                    highlights={highlights}
+                    onAdd={addHighlight}
+                    onRemove={removeHighlight}
+                    className="text-sm text-text-primary leading-[1.8] mb-2 block"
+                  />
+                );
               })}
             </div>
 
@@ -206,9 +219,14 @@ function PRDContent({ problemId }: { problemId: string }) {
                           <span className="text-xs">Writing...</span>
                         </div>
                       ) : (
-                        <div className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap">
-                          {phase.content}
-                        </div>
+                        <HighlightableText
+                          text={phase.content}
+                          field={`phase:${phase.id}`}
+                          highlights={highlights}
+                          onAdd={addHighlight}
+                          onRemove={removeHighlight}
+                          className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap"
+                        />
                       )}
                     </div>
                   ))}

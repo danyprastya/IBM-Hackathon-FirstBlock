@@ -21,14 +21,24 @@ import {
   Check,
   X,
   Trash2,
+  UserPen,
+  KeyRound,
 } from "lucide-react";
 import {
   ContextMenu,
+  ContextMenuTrigger,
   ContextMenuContent,
   ContextMenuItem,
-  ContextMenuTrigger,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -159,70 +169,30 @@ function IdeaLink({ idea, isActive, onDelete }: { idea: Problem; isActive: boole
   }, [isActive, editing, title]);
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger
-        render={
-          <div
-            ref={setNodeRef}
-            style={style}
-            {...attributes}
-            {...listeners}
-            className={`touch-none select-none group relative ${isDragging ? "cursor-grabbing" : "cursor-pointer"}`}
-          />
-        }
+    <div ref={setNodeRef} style={style} className="relative">
+      {/* Drag handle – grab the entire row but allow click-through to link */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute inset-0 z-10 cursor-grab active:cursor-grabbing rounded-md"
+        onClick={(e) => e.stopPropagation()}
+      />
+      <Link
+        href={href}
+        className={`relative flex items-center gap-1.5 pl-2 pr-2 py-1 rounded-md text-[13px] select-none transition-colors ${
+          isActive
+            ? "bg-accent-soft text-accent-primary font-medium"
+            : "text-text-secondary hover:bg-input-bg"
+        }`}
       >
-      {editing ? (
-        <div className={`flex items-center gap-1.5 pl-2 pr-2 py-1 rounded-md text-[13px] ${
-          isActive ? "bg-accent-soft" : "bg-input-bg"
-        }`}>
-          <FileText className="w-3.5 h-3.5 flex-shrink-0 opacity-70 text-text-muted" />
-          <input
-            ref={inputRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commitEdit}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") commitEdit();
-              if (e.key === "Escape") setEditing(false);
-              e.stopPropagation();
-            }}
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="flex-1 bg-transparent text-text-heading focus:outline-none border-b border-accent-primary"
-            autoFocus
-          />
-        </div>
-      ) : (
-        <Link
-          href={href}
-          draggable={false}
-          className={`flex items-center gap-1.5 pl-2 pr-8 py-1 rounded-md text-[13px] transition-colors ${
-            isActive
-              ? "bg-accent-soft text-accent-primary font-medium"
-              : "text-text-secondary hover:bg-input-bg"
-          }`}
-        >
-          <FileText className="w-3.5 h-3.5 flex-shrink-0 opacity-70" />
-          <span className="truncate flex-1">{title}</span>
-        </Link>
-      )}
-
-
-      </ContextMenuTrigger>
-      <ContextMenuContent className="w-48">
-        <ContextMenuItem onClick={startEdit}>
-          <Pencil className="w-4 h-4 mr-2" /> Rename
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onClick={onDelete} className="text-danger focus:text-danger focus:bg-danger/10">
-          <Trash2 className="w-4 h-4 mr-2" /> Delete
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+        <FileText className="w-3.5 h-3.5 flex-shrink-0 opacity-70" />
+        <span className="truncate">{title}</span>
+      </Link>
+    </div>
   );
 }
 
-// ─── FolderRow (sortable) ─────────────────────────────────────────────────────
+// ─── Sortable Folder ─────────────────────────────────────────────────────────
 
 interface FolderRowProps {
   folderName: string;
@@ -434,6 +404,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   const uid = user?.uid ?? null;
   const displayName = userData?.name || user?.displayName || "User";
+  const isGoogleUser = user?.providerData?.some((p) => p.providerId === "google.com") ?? false;
+  const handleChangePassword = () => router.push("/workspace/profile");
 
   // ── Load persisted config on mount ──────────────────────────────
 
@@ -696,11 +668,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     return null;
   };
 
-  const activeFolderName =
-    activeItem?.type === "folder" ? activeItem.id.replace("folder:", "") : null;
   const activeIdea = getActiveIdea();
+  const activeFolderName = activeItem?.type === "folder" ? activeItem.id.replace("folder:", "") : null;
 
-  // ── Collapsed ────────────────────────────────────────────────────
+  // ── Collapsed state ──────────────────────────────────────────────
 
   if (collapsed) {
     return (
@@ -711,9 +682,35 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         <Link href="/workspace" className="p-2 rounded-lg hover:bg-input-bg transition-colors" title="Home">
           <Home className="w-4 h-4 text-text-secondary" />
         </Link>
-        <button className="p-2 rounded-lg hover:bg-input-bg transition-colors mt-auto" onClick={handleSignOut} title="Sign out">
-          <LogOut className="w-4 h-4 text-text-secondary" />
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="mt-auto p-1 rounded-full hover:ring-2 hover:ring-accent-primary/30 transition-all cursor-pointer">
+            <div className="w-8 h-8 rounded-full bg-accent-soft flex items-center justify-center overflow-hidden">
+              {user?.photoURL ? (
+                <img src={user.photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                <span className="text-xs font-semibold text-accent-primary">
+                  {displayName.charAt(0).toUpperCase()}
+                </span>
+              )}
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="end" sideOffset={8}>
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={() => router.push("/workspace/profile")}>
+                <UserPen /> Edit Profile
+              </DropdownMenuItem>
+              {!isGoogleUser && (
+                <DropdownMenuItem onClick={handleChangePassword}>
+                  <KeyRound /> Change Password
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={handleSignOut}>
+              <LogOut /> Sign Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </aside>
     );
   }
@@ -725,10 +722,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Header */}
       <div className="px-4 pt-4 pb-3 flex items-center justify-between">
         <Link href="/workspace" className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-text-heading rounded-lg flex items-center justify-center">
-            <div className="w-3.5 h-3.5 border-2 border-white rounded-sm" />
-          </div>
-          <span className="text-sm font-bold text-text-heading">FirstBlock</span>
+          <img
+            src="/image/Logo1.png"
+            alt="FirstBlock"
+            className="h-7 w-auto object-contain"
+          />
         </Link>
         <button onClick={onToggle} className="p-1.5 rounded-lg hover:bg-input-bg transition-colors">
           <PanelLeftClose className="w-4 h-4 text-text-secondary" />
@@ -886,27 +884,40 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* User footer */}
       <div className="p-3 border-t border-gray-100">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-accent-soft flex items-center justify-center flex-shrink-0 overflow-hidden">
-            {user?.photoURL ? (
-              <img src={user.photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-            ) : (
-              <span className="text-xs font-semibold text-accent-primary">
-                {displayName.charAt(0).toUpperCase()}
-              </span>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-text-heading truncate">{displayName}</p>
-          </div>
-          <button
-            onClick={handleSignOut}
-            className="p-1.5 rounded-lg hover:bg-input-bg transition-colors"
-            title="Sign out"
-          >
-            <LogOut className="w-4 h-4 text-text-muted" />
-          </button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="w-full flex items-center gap-2 p-1 rounded-lg hover:bg-input-bg transition-colors cursor-pointer">
+            <div className="w-8 h-8 rounded-full bg-accent-soft flex items-center justify-center flex-shrink-0 overflow-hidden">
+              {user?.photoURL ? (
+                <img src={user.photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                <span className="text-xs font-semibold text-accent-primary">
+                  {displayName.charAt(0).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-sm font-medium text-text-heading truncate">{displayName}</p>
+              <p className="text-[11px] text-text-muted truncate">{user?.email}</p>
+            </div>
+            <ChevronRight className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align="start" sideOffset={8}>
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={() => router.push("/workspace/profile")}>
+                <UserPen /> Edit Profile
+              </DropdownMenuItem>
+              {!isGoogleUser && (
+                <DropdownMenuItem onClick={handleChangePassword}>
+                  <KeyRound /> Change Password
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={handleSignOut}>
+              <LogOut /> Sign Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <Dialog open={showNewIdeaDialog} onOpenChange={setShowNewIdeaDialog}>
@@ -926,7 +937,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               onKeyDown={async (e) => {
                 if (e.key === "Enter" && !creatingIdea && newIdeaTitle.trim()) {
                   setCreatingIdea(true);
-                  const id = await createProblem("", undefined, newIdeaTargetFolder || "Drafts", newIdeaTitle.trim());
+                   const id = await createProblem("", newIdeaTargetFolder || "Drafts", undefined, newIdeaTitle.trim());
                   setCreatingIdea(false);
                   setShowNewIdeaDialog(false);
                   setNewIdeaTitle("");
@@ -947,7 +958,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               disabled={creatingIdea || !newIdeaTitle.trim()}
               onClick={async () => {
                 setCreatingIdea(true);
-                const id = await createProblem("", undefined, newIdeaTargetFolder || "Drafts", newIdeaTitle.trim());
+                const id = await createProblem("", newIdeaTargetFolder || "Drafts", undefined, newIdeaTitle.trim());
                 setCreatingIdea(false);
                 setShowNewIdeaDialog(false);
                 setNewIdeaTitle("");

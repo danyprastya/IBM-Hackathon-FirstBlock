@@ -9,6 +9,8 @@ import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { useProblems } from "@/hooks/useProblems";
 import { useResearches } from "@/hooks/useResearches";
+import { useHighlights } from "@/hooks/useHighlights";
+import { HighlightableText } from "@/components/workspace/HighlightableText";
 import { RichEditor } from "@/components/editor/RichEditor";
 import { actions, subscriptions } from "@/lib/store";
 import type { Problem, Research } from "@/lib/store";
@@ -48,7 +50,12 @@ function useIdeaData(ideaId: string) {
   return { problem, researches, loading };
 }
 
-function ResearchBriefCard({ research }: { research: Research }) {
+function ResearchBriefCard({ research, highlights, onAddHighlight, onRemoveHighlight }: {
+  research: Research;
+  highlights: ReturnType<typeof useHighlights>["highlights"];
+  onAddHighlight: ReturnType<typeof useHighlights>["addHighlight"];
+  onRemoveHighlight: ReturnType<typeof useHighlights>["removeHighlight"];
+}) {
   const statusIcon = research.status === "complete"
     ? <CheckCircle2 className="w-4 h-4 text-success" />
     : research.status === "running"
@@ -74,13 +81,27 @@ function ResearchBriefCard({ research }: { research: Research }) {
           {research.brief.marketSignal && (
             <div>
               <h4 className="text-xs font-bold text-text-heading mb-0.5">Market signal</h4>
-              <p className="text-sm text-text-primary leading-relaxed">{research.brief.marketSignal}</p>
+              <HighlightableText
+                text={research.brief.marketSignal}
+                field={`research:${research.id}:marketSignal`}
+                highlights={highlights}
+                onAdd={onAddHighlight}
+                onRemove={onRemoveHighlight}
+                className="text-sm text-text-primary leading-relaxed"
+              />
             </div>
           )}
           {research.brief.painEvidence && (
             <div>
               <h4 className="text-xs font-bold text-text-heading mb-0.5">Pain evidence</h4>
-              <p className="text-sm text-text-primary leading-relaxed">{research.brief.painEvidence}</p>
+              <HighlightableText
+                text={research.brief.painEvidence}
+                field={`research:${research.id}:painEvidence`}
+                highlights={highlights}
+                onAdd={onAddHighlight}
+                onRemove={onRemoveHighlight}
+                className="text-sm text-text-primary leading-relaxed"
+              />
             </div>
           )}
           {research.brief.competitionNote && (
@@ -118,6 +139,7 @@ function MobileIdeaDocument({ ideaId }: { ideaId: string }) {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const { problem, researches, loading } = useIdeaData(ideaId);
+  const { highlights, addHighlight, removeHighlight } = useHighlights(ideaId);
   const [showResearchSheet, setShowResearchSheet] = useState(false);
   const [triggeringResearch, setTriggeringResearch] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -329,7 +351,13 @@ function MobileIdeaDocument({ ideaId }: { ideaId: string }) {
             <div className="px-6 pb-8 space-y-4">
               <h2 className="text-lg font-bold text-text-heading">Research Log</h2>
               {researches.map((r) => (
-                <ResearchBriefCard key={r.id} research={r} />
+                <ResearchBriefCard
+                  key={r.id}
+                  research={r}
+                  highlights={highlights}
+                  onAddHighlight={addHighlight}
+                  onRemoveHighlight={removeHighlight}
+                />
               ))}
             </div>
           </div>
@@ -344,6 +372,7 @@ function DesktopIdeaDocument({ ideaId }: { ideaId: string }) {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const { problem, researches, loading } = useIdeaData(ideaId);
+  const { highlights, addHighlight, removeHighlight } = useHighlights(ideaId);
   const [triggeringResearch, setTriggeringResearch] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editHtml, setEditHtml] = useState("");
@@ -547,7 +576,13 @@ function DesktopIdeaDocument({ ideaId }: { ideaId: string }) {
                   Research Log
                 </h2>
                 {researches.map((r) => (
-                  <ResearchBriefCard key={r.id} research={r} />
+                  <ResearchBriefCard
+                    key={r.id}
+                    research={r}
+                    highlights={highlights}
+                    onAddHighlight={addHighlight}
+                    onRemoveHighlight={removeHighlight}
+                  />
                 ))}
               </div>
             )}

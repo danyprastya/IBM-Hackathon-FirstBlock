@@ -11,9 +11,11 @@ export function Hero() {
       <div className="relative max-w-4xl mx-auto text-center flex flex-col gap-8 items-center">
         {/* Logo/Brand */}
         <div className="inline-block">
-          <div className="size-16 mx-auto mb-2 rounded-2xl bg-accent-primary/10 border border-accent-primary/20 flex items-center justify-center">
-            <div className="size-8 rounded-lg bg-accent-primary" />
-          </div>
+          <img
+            src="/image/Logo2.png"
+            alt="FirstBlock"
+            className="size-16 mx-auto mb-2 object-contain"
+          />
         </div>
 
         {/* Heading */}

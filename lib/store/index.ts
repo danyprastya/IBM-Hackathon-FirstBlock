@@ -58,6 +58,7 @@ const conv = {
       inputType: d.inputType ?? "text",
       createdAt: toDate(d.createdAt),
       folder: d.folder ?? "Drafts",
+      pinned: d.pinned ?? false,
     };
   },
   research: (snap: QueryDocumentSnapshot<DocumentData>): Research => {
