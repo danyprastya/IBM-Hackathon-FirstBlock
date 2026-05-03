@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, Lightbulb, Pencil, Brain, Star, Puzzle, Rocket, Package } from "lucide-react";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
@@ -62,46 +62,46 @@ export default function LoginPage() {
       <div className="flex-1 relative flex items-center justify-center overflow-hidden px-8 pt-12">
         {/* Background circles */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-72 h-72 rounded-full border border-accent-primary/10" />
-          <div className="absolute w-56 h-56 rounded-full border border-accent-primary/8" />
-          <div className="absolute w-40 h-40 rounded-full border border-accent-primary/5" />
+          <div className="size-72 rounded-full border border-accent-primary/10" />
+          <div className="absolute size-56 rounded-full border border-accent-primary/8" />
+          <div className="absolute size-40 rounded-full border border-accent-primary/5" />
         </div>
 
-        {/* Floating emoji bubbles */}
+        {/* Floating icon bubbles — Lucide icons, not emojis */}
         <div className="relative w-full max-w-xs h-64">
           {/* Center folder with lightbulb */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-24 bg-accent-primary/10 rounded-xl flex items-end justify-center pb-2">
-            <span className="text-3xl">💡</span>
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-24 bg-accent-primary/10 rounded-xl flex items-end justify-center pb-3">
+            <Lightbulb className="size-8 text-accent-primary" />
           </div>
 
-          {/* Floating emojis */}
-          <div className="absolute top-0 left-1/3 w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center shadow-sm animate-bounce-slow">
-            <span className="text-xl">📝</span>
+          {/* Floating icons */}
+          <div className="absolute top-0 left-1/3 size-12 bg-blue-50 rounded-full flex items-center justify-center shadow-sm">
+            <Pencil className="size-5 text-blue-500" />
           </div>
-          <div className="absolute top-4 right-4 w-10 h-10 bg-pink-50 rounded-full flex items-center justify-center shadow-sm" style={{ animationDelay: "0.2s" }}>
-            <span className="text-lg">🧠</span>
+          <div className="absolute top-4 right-4 size-10 bg-teal-50 rounded-full flex items-center justify-center shadow-sm">
+            <Brain className="size-5 text-teal-500" />
           </div>
-          <div className="absolute top-16 left-0 w-11 h-11 bg-yellow-50 rounded-full flex items-center justify-center shadow-sm">
-            <span className="text-lg">⭐</span>
+          <div className="absolute top-16 left-0 size-11 bg-yellow-50 rounded-full flex items-center justify-center shadow-sm">
+            <Star className="size-5 text-yellow-500" />
           </div>
-          <div className="absolute bottom-8 left-0 w-10 h-10 bg-green-50 rounded-full flex items-center justify-center shadow-sm">
-            <span className="text-lg">🧩</span>
+          <div className="absolute bottom-8 left-0 size-10 bg-green-50 rounded-full flex items-center justify-center shadow-sm">
+            <Puzzle className="size-5 text-green-500" />
           </div>
-          <div className="absolute top-0 left-0 w-9 h-9 bg-purple-50 rounded-full flex items-center justify-center shadow-sm">
-            <span className="text-sm">🚀</span>
+          <div className="absolute top-0 left-0 size-9 bg-accent-soft rounded-full flex items-center justify-center shadow-sm">
+            <Rocket className="size-4 text-accent-primary" />
           </div>
-          <div className="absolute bottom-0 right-0 w-10 h-10 bg-orange-50 rounded-full flex items-center justify-center shadow-sm">
-            <span className="text-lg">📦</span>
+          <div className="absolute bottom-0 right-0 size-10 bg-orange-50 rounded-full flex items-center justify-center shadow-sm">
+            <Package className="size-5 text-orange-500" />
           </div>
         </div>
       </div>
 
       {/* Bottom content */}
-      <div className="px-8 pb-12 space-y-8">
+      <div className="px-8 pb-12 flex flex-col gap-8">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2">
-          <div className="w-8 h-8 bg-text-heading rounded-lg flex items-center justify-center">
-            <div className="w-4 h-4 border-2 border-white rounded-sm" />
+          <div className="size-8 bg-text-heading rounded-lg flex items-center justify-center">
+            <div className="size-4 border-2 border-white rounded-sm" />
           </div>
           <span className="text-xs font-semibold tracking-widest uppercase text-text-heading">
             First Block
@@ -109,7 +109,7 @@ export default function LoginPage() {
         </div>
 
         {/* Tagline */}
-        <div className="text-center space-y-3">
+        <div className="text-center flex flex-col gap-3 items-center">
           <h1 className="text-3xl font-bold text-text-heading leading-tight">
             Every big thing started
             <br />
@@ -132,16 +132,16 @@ export default function LoginPage() {
         <button
           onClick={handleGoogleLogin}
           disabled={loading}
-          className="w-full py-4 rounded-2xl bg-accent-primary text-white font-semibold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60"
+          className="w-full py-4 rounded-2xl bg-accent-primary text-white font-semibold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 cursor-pointer"
         >
           {loading ? (
             <>
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Loader2 className="size-5 animate-spin" />
               Signing in...
             </>
           ) : (
             <>
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="white">
+              <svg className="size-5" viewBox="0 0 24 24" fill="white">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />

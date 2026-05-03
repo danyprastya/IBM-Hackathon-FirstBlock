@@ -23,9 +23,8 @@ export default function RegisterPage() {
 
   const checkOnboardingAndRedirect = async (userId: string) => {
     try {
-      // Check if user has completed onboarding
       const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, userId));
-      
+
       if (userDoc.exists()) {
         const userData = userDoc.data();
         if (userData.onboardingCompleted) {
@@ -34,13 +33,11 @@ export default function RegisterPage() {
           router.push("/onboarding");
         }
       } else {
-        // User document doesn't exist, redirect to onboarding
         router.push("/onboarding");
       }
       router.refresh();
     } catch (err) {
       console.error("Error checking onboarding status:", err);
-      // Default to onboarding if there's an error
       router.push("/onboarding");
       router.refresh();
     }
@@ -50,7 +47,6 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
 
-    // Validation
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -70,10 +66,8 @@ export default function RegisterPage() {
 
     try {
       await signUp(email, password, name.trim());
-      // Wait a bit for cookie to be set and auth state to update
       await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Get the current user after sign up
+
       const currentUser = (await import("@/lib/firebase/client")).auth.currentUser;
       if (currentUser) {
         await checkOnboardingAndRedirect(currentUser.uid);
@@ -91,10 +85,8 @@ export default function RegisterPage() {
 
     try {
       await signInWithGoogle();
-      // Wait a bit for cookie to be set and auth state to update
       await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Get the current user after sign in
+
       const currentUser = (await import("@/lib/firebase/client")).auth.currentUser;
       if (currentUser) {
         await checkOnboardingAndRedirect(currentUser.uid);
@@ -107,16 +99,16 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 py-12">
-      <div className="w-full max-w-md space-y-8">
+    <div className="min-h-screen flex items-center justify-center px-6 py-12 bg-white">
+      <div className="w-full max-w-md flex flex-col gap-8">
         {/* Header */}
-        <div className="text-center space-y-2">
+        <div className="text-center flex flex-col gap-2 items-center">
           <Link href="/" className="inline-block">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-accent-primary/10 border border-accent-primary/20 flex items-center justify-center">
-              <div className="w-6 h-6 rounded-lg bg-accent-primary" />
+            <div className="size-12 mx-auto mb-4 rounded-xl bg-accent-primary/10 border border-accent-primary/20 flex items-center justify-center">
+              <div className="size-6 rounded-lg bg-accent-primary" />
             </div>
           </Link>
-          <h1 className="text-3xl font-bold text-text-primary">
+          <h1 className="text-3xl font-bold text-text-heading">
             Create your account
           </h1>
           <p className="text-text-secondary">
@@ -125,7 +117,7 @@ export default function RegisterPage() {
         </div>
 
         {/* Form Card */}
-        <div className="bg-bg-card border border-border rounded-2xl p-8 space-y-6">
+        <div className="bg-white border border-border rounded-2xl p-8 flex flex-col gap-6">
           {/* Error Message */}
           {error && (
             <div className="p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-sm">
@@ -134,13 +126,13 @@ export default function RegisterPage() {
           )}
 
           {/* Email/Password Form */}
-          <form onSubmit={handleEmailRegister} className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="name" className="text-sm font-medium text-text-primary">
+          <form onSubmit={handleEmailRegister} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="name" className="text-sm font-medium text-text-heading">
                 Full Name
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-text-muted" />
                 <input
                   id="name"
                   type="text"
@@ -148,17 +140,17 @@ export default function RegisterPage() {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="John Doe"
                   required
-                  className="w-full pl-10 pr-4 py-2 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 bg-input-bg border border-input-border rounded-lg text-text-heading placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium text-text-primary">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="email" className="text-sm font-medium text-text-heading">
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-text-muted" />
                 <input
                   id="email"
                   type="email"
@@ -166,17 +158,17 @@ export default function RegisterPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   required
-                  className="w-full pl-10 pr-4 py-2 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 bg-input-bg border border-input-border rounded-lg text-text-heading placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-text-primary">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="password" className="text-sm font-medium text-text-heading">
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-text-muted" />
                 <input
                   id="password"
                   type="password"
@@ -185,18 +177,18 @@ export default function RegisterPage() {
                   placeholder="••••••••"
                   required
                   minLength={6}
-                  className="w-full pl-10 pr-4 py-2 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 bg-input-bg border border-input-border rounded-lg text-text-heading placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent"
                 />
               </div>
               <p className="text-xs text-text-muted">Must be at least 6 characters</p>
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="confirmPassword" className="text-sm font-medium text-text-primary">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="confirmPassword" className="text-sm font-medium text-text-heading">
                 Confirm Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-text-muted" />
                 <input
                   id="confirmPassword"
                   type="password"
@@ -205,20 +197,20 @@ export default function RegisterPage() {
                   placeholder="••••••••"
                   required
                   minLength={6}
-                  className="w-full pl-10 pr-4 py-2 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 bg-input-bg border border-input-border rounded-lg text-text-heading placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent"
                 />
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full cursor-pointer" disabled={loading}>
               {loading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="size-4 animate-spin" />
                   Creating account...
                 </>
               ) : (
                 <>
-                  <UserPlus className="w-4 h-4" />
+                  <UserPlus className="size-4" />
                   Create Account
                 </>
               )}
@@ -231,7 +223,7 @@ export default function RegisterPage() {
               <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-bg-card text-text-muted">Or continue with</span>
+              <span className="px-2 bg-white text-text-muted">Or continue with</span>
             </div>
           </div>
 
@@ -239,11 +231,11 @@ export default function RegisterPage() {
           <Button
             type="button"
             variant="outline"
-            className="w-full"
+            className="w-full cursor-pointer"
             onClick={handleGoogleRegister}
             disabled={loading}
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
+            <svg className="size-5" viewBox="0 0 24 24">
               <path
                 fill="currentColor"
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

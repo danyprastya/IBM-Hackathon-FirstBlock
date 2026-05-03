@@ -7,21 +7,13 @@ const protectedRoutes = ["/workspace", "/onboarding"];
 // Routes that should redirect if already authenticated
 const authRoutes = ["/login", "/register"];
 
-// Public routes that don't require authentication
-const publicRoutes = ["/", "/api/auth"];
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check if route requires authentication
   const isProtectedRoute = protectedRoutes.some((route) =>
     pathname.startsWith(route)
   );
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
-  const isPublicRoute =
-    publicRoutes.some((route) => pathname.startsWith(route)) ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/api/auth");
 
   // CSRF Protection: Check Origin/Referer for mutating requests
   if (["POST", "PUT", "DELETE", "PATCH"].includes(request.method)) {
@@ -29,7 +21,6 @@ export async function middleware(request: NextRequest) {
     const referer = request.headers.get("referer");
     const host = request.headers.get("host");
 
-    // Allow requests from same origin
     const isValidOrigin =
       origin === `http://${host}` ||
       origin === `https://${host}` ||
@@ -43,10 +34,6 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // For Firebase Auth, we rely on client-side auth state
-  // Server-side auth verification happens in API routes via Firebase Admin SDK
-  // Middleware only handles route-level redirects based on cookies/headers
-
   // Check for Firebase auth token in cookies
   const authToken = request.cookies.get("__session")?.value;
 
@@ -57,23 +44,29 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Auth routes: Let the page handle the redirect logic
-  // The login/register pages will check onboarding status and redirect appropriately
-  // We don't redirect here to avoid bypassing the onboarding check
+  // Onboarding guard: if user tries to access /workspace without
+  // completing onboarding, block it. We store onboarding status in a
+  // lightweight cookie set after onboarding completion.
+  if (pathname.startsWith("/workspace") && authToken) {
+    const onboardingDone = request.cookies.get("__onboarding_done")?.value;
+    if (!onboardingDone) {
+      // User has auth but no onboarding cookie — redirect to onboarding.
+      // The onboarding page will check Firestore and set the cookie if
+      // the user already completed onboarding (returning user).
+      return NextResponse.redirect(new URL("/onboarding", request.url));
+    }
+  }
 
-  // Allow the request to proceed
+  // Auth routes: if user is authenticated, redirect to workspace
+  if (isAuthRoute && authToken) {
+    return NextResponse.redirect(new URL("/workspace", request.url));
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

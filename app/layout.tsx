@@ -28,9 +28,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${plusJakarta.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${plusJakarta.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-bg-primary text-text-primary font-sans">
+      <body className="min-h-screen antialiased">
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
