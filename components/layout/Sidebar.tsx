@@ -379,9 +379,10 @@ function NewFolderInput({
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, signOut } = useAuth();
   const { userData } = useUserData();
-  const { folders: firestoreFolders, loading: problemsLoading } = useProblems();
+  const { folders: firestoreFolders, loading: problemsLoading, createProblem } = useProblems();
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(["Drafts"]));
   const [searchQuery, setSearchQuery] = useState("");
@@ -400,7 +401,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   // New Idea Dialog
   const [showNewIdeaDialog, setShowNewIdeaDialog] = useState(false);
   const [newIdeaTitle, setNewIdeaTitle] = useState("");
-  const router = useRouter();
+  const [creatingIdea, setCreatingIdea] = useState(false);
 
   const uid = user?.uid ?? null;
   const displayName = userData?.name || user?.displayName || "User";
@@ -862,31 +863,40 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               placeholder="e.g. AI Content Generator"
               className="w-full bg-input-bg text-text-heading px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-accent-primary transition-colors"
               autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
+              disabled={creatingIdea}
+              onKeyDown={async (e) => {
+                if (e.key === "Enter" && !creatingIdea && newIdeaTitle.trim()) {
+                  setCreatingIdea(true);
+                  const id = await createProblem("", undefined, "", newIdeaTitle.trim());
+                  setCreatingIdea(false);
                   setShowNewIdeaDialog(false);
-                  router.push(`/workspace/new?title=${encodeURIComponent(newIdeaTitle.trim())}`);
                   setNewIdeaTitle("");
+                  if (id) router.push(`/workspace/idea/${id}`);
                 }
               }}
             />
           </div>
           <DialogFooter>
             <button
+              disabled={creatingIdea}
               onClick={() => setShowNewIdeaDialog(false)}
-              className="px-4 py-2 text-sm font-medium text-text-muted hover:text-text-primary transition-colors"
+              className="px-4 py-2 text-sm font-medium text-text-muted hover:text-text-primary transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
-              onClick={() => {
+              disabled={creatingIdea || !newIdeaTitle.trim()}
+              onClick={async () => {
+                setCreatingIdea(true);
+                const id = await createProblem("", undefined, "", newIdeaTitle.trim());
+                setCreatingIdea(false);
                 setShowNewIdeaDialog(false);
-                router.push(`/workspace/new?title=${encodeURIComponent(newIdeaTitle.trim())}`);
                 setNewIdeaTitle("");
+                if (id) router.push(`/workspace/idea/${id}`);
               }}
-              className="px-4 py-2 text-sm font-medium bg-accent-primary text-white rounded-lg hover:bg-accent-hover transition-colors"
+              className="flex items-center justify-center min-w-[100px] px-4 py-2 text-sm font-medium bg-accent-primary text-white rounded-lg hover:bg-accent-hover transition-colors disabled:opacity-50"
             >
-              Start Board
+              {creatingIdea ? <Loader2 className="w-4 h-4 animate-spin" /> : "Start Board"}
             </button>
           </DialogFooter>
         </DialogContent>

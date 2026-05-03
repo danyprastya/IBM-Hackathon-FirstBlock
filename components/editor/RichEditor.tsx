@@ -60,9 +60,9 @@ export function RichEditor({ content, onChange, placeholder = "Start typing..." 
   if (!editor) return null;
 
   return (
-    <div className="flex flex-col border border-gray-200 rounded-xl overflow-hidden bg-white">
+    <div className="flex flex-col border border-gray-400 rounded-xl overflow-hidden bg-white">
       {/* Toolbar */}
-      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 bg-gray-50/50 flex-wrap">
+      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 bg-gray-100 flex-wrap">
         {/* Undo/Redo */}
         <ToolbarButton
           onClick={() => editor.chain().focus().undo().run()}
@@ -186,7 +186,7 @@ export function RichEditor({ content, onChange, placeholder = "Start typing..." 
           onClick={() => editor.chain().focus().setHorizontalRule().run()}
           title="Horizontal Line"
         >
-          <Minus className="size-4" />
+          <Minus className="size-4 " />
         </ToolbarButton>
       </div>
 
@@ -225,7 +225,7 @@ function ToolbarButton({ onClick, active, disabled, title, children }: ToolbarBu
 }
 
 function ToolbarDivider() {
-  return <div className="w-px h-5 bg-gray-200 mx-1" />;
+  return <div className="w-px h-5 bg-gray-300 mx-1" />;
 }
 
 // Made with Bob

@@ -122,6 +122,30 @@ function MobileIdeaDocument({ ideaId }: { ideaId: string }) {
   const [editing, setEditing] = useState(false);
   const [editHtml, setEditHtml] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+
+  useEffect(() => {
+    if (problem && !editingTitle) {
+      setTitleDraft(problem.title || problem.rawInput.slice(0, 60));
+    }
+  }, [problem, editingTitle]);
+
+  const handleSaveTitle = async () => {
+    if (!user?.uid || !titleDraft.trim()) {
+      setEditingTitle(false);
+      return;
+    }
+    const currentTitle = problem?.title || problem?.rawInput.slice(0, 60);
+    if (titleDraft.trim() !== currentTitle) {
+      try {
+        await actions.updateProblem(ideaId, { title: titleDraft.trim() });
+      } catch (err) {
+        console.error("Save title error:", err);
+      }
+    }
+    setEditingTitle(false);
+  };
 
   const handleResearch = async () => {
     if (!problem) return;
@@ -226,7 +250,31 @@ function MobileIdeaDocument({ ideaId }: { ideaId: string }) {
           />
         ) : (
           <>
-            <h1 className="text-2xl font-bold text-text-heading leading-tight mb-6">{title}</h1>
+            {editingTitle ? (
+              <input
+                type="text"
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onBlur={handleSaveTitle}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveTitle();
+                  if (e.key === "Escape") setEditingTitle(false);
+                }}
+                autoFocus
+                className="w-full text-2xl font-bold text-text-heading leading-tight mb-6 bg-transparent border-b border-accent-primary focus:outline-none"
+              />
+            ) : (
+              <div className="group flex items-center gap-2 mb-6">
+                <h1 className="text-2xl font-bold text-text-heading leading-tight">{title || "Untitled Project"}</h1>
+                <button
+                  onClick={() => setEditingTitle(true)}
+                  className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-input-bg rounded-lg transition-all text-text-muted"
+                  title="Edit title"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              </div>
+            )}
             {problem.htmlContent ? (
               <div
                 className="rich-editor-content"
@@ -282,6 +330,30 @@ function DesktopIdeaDocument({ ideaId }: { ideaId: string }) {
   const [editing, setEditing] = useState(false);
   const [editHtml, setEditHtml] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+
+  useEffect(() => {
+    if (problem && !editingTitle) {
+      setTitleDraft(problem.title || problem.rawInput.slice(0, 60));
+    }
+  }, [problem, editingTitle]);
+
+  const handleSaveTitle = async () => {
+    if (!user?.uid || !titleDraft.trim()) {
+      setEditingTitle(false);
+      return;
+    }
+    const currentTitle = problem?.title || problem?.rawInput.slice(0, 60);
+    if (titleDraft.trim() !== currentTitle) {
+      try {
+        await actions.updateProblem(ideaId, { title: titleDraft.trim() });
+      } catch (err) {
+        console.error("Save title error:", err);
+      }
+    }
+    setEditingTitle(false);
+  };
 
   const handleResearch = async () => {
     if (!problem) return;
@@ -401,7 +473,31 @@ function DesktopIdeaDocument({ ideaId }: { ideaId: string }) {
           />
         ) : (
           <>
-            <h1 className="text-3xl font-bold text-text-heading leading-tight mb-8">{title}</h1>
+            {editingTitle ? (
+              <input
+                type="text"
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onBlur={handleSaveTitle}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveTitle();
+                  if (e.key === "Escape") setEditingTitle(false);
+                }}
+                autoFocus
+                className="w-full text-3xl font-bold text-text-heading leading-tight mb-8 bg-transparent border-b border-accent-primary focus:outline-none"
+              />
+            ) : (
+              <div className="group flex items-center gap-2 mb-8">
+                <h1 className="text-3xl font-bold text-text-heading leading-tight">{title || "Untitled Project"}</h1>
+                <button
+                  onClick={() => setEditingTitle(true)}
+                  className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-input-bg rounded-lg transition-all text-text-muted"
+                  title="Edit title"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
             {/* Rich content or raw dump */}
             <div className="mb-10">
