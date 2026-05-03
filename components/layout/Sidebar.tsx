@@ -15,36 +15,11 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Home,
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { useUserData } from "@/hooks/useUserData";
-
-// Mock project tree — will be replaced with Firestore queries
-const MOCK_TREE = [
-  {
-    id: "drafts",
-    name: "Drafts",
-    type: "folder" as const,
-    children: [
-      { id: "welcome", name: "Welcome to FirstBlock 👋", type: "idea" as const },
-    ],
-  },
-  {
-    id: "food-bev",
-    name: "Food & Bev",
-    type: "folder" as const,
-    children: [
-      { id: "meal-prep", name: "Meal prep delivery for college dorms", type: "idea" as const },
-      { id: "ghost-kitchen", name: "Ghost kitchen for TikTok recipes", type: "idea" as const },
-    ],
-  },
-  {
-    id: "tech-ideas",
-    name: "Tech Ideas",
-    type: "folder" as const,
-    children: [],
-  },
-];
+import { useProblems, type Problem } from "@/hooks/useProblems";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -55,18 +30,19 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const { userData } = useUserData();
+  const { folders, loading: problemsLoading } = useProblems();
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    new Set(["drafts", "food-bev"])
+    new Set(["Drafts"])
   );
   const [searchQuery, setSearchQuery] = useState("");
 
   const displayName = userData?.name || user?.displayName || "User";
 
-  const toggleFolder = (id: string) => {
+  const toggleFolder = (name: string) => {
     setExpandedFolders((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
       return next;
     });
   };
@@ -78,6 +54,24 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       console.error("Sign out error:", err);
     }
   };
+
+  // Filter problems by search
+  const filteredFolders: Record<string, Problem[]> = searchQuery.trim()
+    ? Object.fromEntries(
+        Object.entries(folders).map(([name, problems]) => [
+          name,
+          problems.filter(
+            (p) =>
+              p.rawInput.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              p.cleanedStatement.toLowerCase().includes(searchQuery.toLowerCase())
+          ),
+        ]).filter(([, problems]) => (problems as Problem[]).length > 0)
+      )
+    : folders;
+
+  const folderNames = Object.keys(filteredFolders).sort((a, b) =>
+    a === "Drafts" ? -1 : b === "Drafts" ? 1 : a.localeCompare(b)
+  );
 
   if (collapsed) {
     return (
@@ -141,54 +135,70 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           Projects
         </p>
 
-        {MOCK_TREE.map((folder) => (
-          <div key={folder.id}>
-            {/* Folder row */}
-            <button
-              onClick={() => toggleFolder(folder.id)}
-              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors hover:bg-input-bg ${
-                pathname === `/workspace/folder/${folder.id}`
-                  ? "bg-input-bg font-medium text-text-heading"
-                  : "text-text-primary"
-              }`}
-            >
-              {expandedFolders.has(folder.id) ? (
-                <ChevronDown className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
-              ) : (
-                <ChevronRight className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
-              )}
-              {expandedFolders.has(folder.id) ? (
-                <FolderOpen className="w-4 h-4 text-text-muted flex-shrink-0" />
-              ) : (
-                <FolderClosed className="w-4 h-4 text-text-muted flex-shrink-0" />
-              )}
-              <span className="truncate">{folder.name}</span>
-              <span className="ml-auto text-xs text-text-muted">
-                {folder.children.length}
-              </span>
-            </button>
-
-            {/* Children */}
-            {expandedFolders.has(folder.id) && folder.children.length > 0 && (
-              <div className="ml-4 border-l border-gray-100 pl-2">
-                {folder.children.map((idea) => (
-                  <Link
-                    key={idea.id}
-                    href={`/workspace/idea/${idea.id}`}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors hover:bg-input-bg ${
-                      pathname === `/workspace/idea/${idea.id}`
-                        ? "bg-accent-soft font-medium text-accent-primary"
-                        : "text-text-secondary"
-                    }`}
-                  >
-                    <FileText className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span className="truncate">{idea.name}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
+        {problemsLoading ? (
+          <div className="flex items-center gap-2 px-2 py-4 text-text-muted">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-xs">Loading...</span>
           </div>
-        ))}
+        ) : folderNames.length === 0 ? (
+          <div className="px-2 py-4 text-center">
+            <p className="text-xs text-text-muted">No ideas yet.</p>
+            <p className="text-xs text-text-muted mt-1">Tap &quot;New Idea&quot; to start.</p>
+          </div>
+        ) : (
+          folderNames.map((folderName) => {
+            const ideas = filteredFolders[folderName];
+            const isExpanded = expandedFolders.has(folderName);
+
+            return (
+              <div key={folderName}>
+                {/* Folder row */}
+                <button
+                  onClick={() => toggleFolder(folderName)}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors hover:bg-input-bg text-text-primary"
+                >
+                  {isExpanded ? (
+                    <ChevronDown className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
+                  ) : (
+                    <ChevronRight className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
+                  )}
+                  {isExpanded ? (
+                    <FolderOpen className="w-4 h-4 text-text-muted flex-shrink-0" />
+                  ) : (
+                    <FolderClosed className="w-4 h-4 text-text-muted flex-shrink-0" />
+                  )}
+                  <span className="truncate">{folderName}</span>
+                  <span className="ml-auto text-xs text-text-muted">{ideas.length}</span>
+                </button>
+
+                {/* Children */}
+                {isExpanded && ideas.length > 0 && (
+                  <div className="ml-4 border-l border-gray-100 pl-2">
+                    {ideas.map((idea) => {
+                      const title =
+                        idea.cleanedStatement ||
+                        idea.rawInput.slice(0, 50) + (idea.rawInput.length > 50 ? "…" : "");
+                      return (
+                        <Link
+                          key={idea.id}
+                          href={`/workspace/idea/${idea.id}`}
+                          className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors hover:bg-input-bg ${
+                            pathname === `/workspace/idea/${idea.id}`
+                              ? "bg-accent-soft font-medium text-accent-primary"
+                              : "text-text-secondary"
+                          }`}
+                        >
+                          <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span className="truncate">{title}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </nav>
 
       {/* User footer */}
