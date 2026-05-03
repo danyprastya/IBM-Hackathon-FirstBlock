@@ -91,6 +91,15 @@ function IdeaLink({ idea, isActive }: { idea: Problem; isActive: boolean }) {
     isDragging,
   } = useSortable({ id: `idea:${idea.id}`, data: { type: "idea", idea } });
 
+  const [editing, setEditing] = useState(false);
+  const title = idea.title && idea.title.trim()
+    ? idea.title
+    : idea.rawInput.replace(/<[^>]+>/g, " ").trim().slice(0, 50) +
+      (idea.rawInput.length > 50 ? "…" : "");
+  
+  const [draft, setDraft] = useState(title);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const href = `/workspace/idea/${idea.id}`;
 
   const style = {
@@ -99,11 +108,40 @@ function IdeaLink({ idea, isActive }: { idea: Problem; isActive: boolean }) {
     opacity: isDragging ? 0.35 : 1,
   };
 
-  const title =
-    idea.title && idea.title.trim()
-      ? idea.title
-      : idea.rawInput.replace(/<[^>]+>/g, " ").trim().slice(0, 50) +
-        (idea.rawInput.length > 50 ? "…" : "");
+  const startEdit = (e: React.MouseEvent | React.KeyboardEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDraft(title);
+    setEditing(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  };
+
+  const commitEdit = async () => {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== title) {
+      try {
+        await actions.updateProblem(idea.id, { title: trimmed });
+      } catch (err) {
+        console.error("Rename idea error:", err);
+      }
+    }
+    setEditing(false);
+  };
+
+  // Global F2 listener for active idea
+  useEffect(() => {
+    if (!isActive || editing) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "F2") {
+        e.preventDefault();
+        setDraft(title);
+        setEditing(true);
+        setTimeout(() => inputRef.current?.select(), 0);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isActive, editing, title]);
 
   return (
     <div
@@ -111,20 +149,56 @@ function IdeaLink({ idea, isActive }: { idea: Problem; isActive: boolean }) {
       style={style}
       {...attributes}
       {...listeners}
-      className="touch-none select-none"
+      className="touch-none select-none group relative"
     >
-      <Link
-        href={href}
-        draggable={false}
-        className={`flex items-center gap-1.5 pl-2 pr-2 py-1 rounded-md text-[13px] transition-colors ${
-          isActive
-            ? "bg-accent-soft text-accent-primary font-medium"
-            : "text-text-secondary hover:bg-input-bg"
-        }`}
-      >
-        <FileText className="w-3.5 h-3.5 flex-shrink-0 opacity-70" />
-        <span className="truncate">{title}</span>
-      </Link>
+      {editing ? (
+        <div className={`flex items-center gap-1.5 pl-2 pr-2 py-1 rounded-md text-[13px] ${
+          isActive ? "bg-accent-soft" : "bg-input-bg"
+        }`}>
+          <FileText className="w-3.5 h-3.5 flex-shrink-0 opacity-70 text-text-muted" />
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commitEdit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitEdit();
+              if (e.key === "Escape") setEditing(false);
+              e.stopPropagation();
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="flex-1 bg-transparent text-text-heading focus:outline-none border-b border-accent-primary"
+            autoFocus
+          />
+        </div>
+      ) : (
+        <Link
+          href={href}
+          draggable={false}
+          className={`flex items-center gap-1.5 pl-2 pr-8 py-1 rounded-md text-[13px] transition-colors ${
+            isActive
+              ? "bg-accent-soft text-accent-primary font-medium"
+              : "text-text-secondary hover:bg-input-bg"
+          }`}
+        >
+          <FileText className="w-3.5 h-3.5 flex-shrink-0 opacity-70" />
+          <span className="truncate flex-1">{title}</span>
+        </Link>
+      )}
+
+      {/* Pencil icon for hover-based rename (like FolderRow) */}
+      {!editing && (
+        <span
+          role="button"
+          onClick={startEdit}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-gray-200 transition-all z-10"
+          title="Rename idea (F2)"
+        >
+          <Pencil className="w-3 h-3 text-text-muted" />
+        </span>
+      )}
     </div>
   );
 }

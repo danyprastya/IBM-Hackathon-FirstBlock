@@ -46,23 +46,26 @@ export function useProblems() {
 
   // Create a new problem (raw dump)
   const createProblem = useCallback(
-    async (rawInput: string, folder?: string, htmlContent?: string): Promise<string | null> => {
+    async (rawInput: string, folder?: string, htmlContent?: string, providedTitle?: string): Promise<string | null> => {
       if (!uid) return null;
 
-      // Derive a short title from the first non-empty sentence / line (max 60 chars)
-      const firstLine = rawInput
-        .replace(/<[^>]+>/g, " ")  // strip any residual HTML
-        .split(/[\n.!?]/)
-        .map((s) => s.trim())
-        .find((s) => s.length > 0) ?? "";
-      const autoTitle = firstLine.length > 60 ? firstLine.slice(0, 60) + "…" : firstLine;
+      // Derive a short title from the first non-empty sentence / line (max 60 chars) if not provided
+      let finalTitle = providedTitle?.trim();
+      if (!finalTitle) {
+        const firstLine = rawInput
+          .replace(/<[^>]+>/g, " ")  // strip any residual HTML
+          .split(/[\n.!?]/)
+          .map((s) => s.trim())
+          .find((s) => s.length > 0) ?? "";
+        finalTitle = firstLine.length > 60 ? firstLine.slice(0, 60) + "…" : firstLine;
+      }
 
       try {
         const docRef = await addDoc(
           collection(db, "users", uid, "problems"),
           {
             rawInput,
-            title: autoTitle,
+            title: finalTitle,
             htmlContent: htmlContent || "",
             cleanedStatement: "",
             inputType: "text" as const,

@@ -25,6 +25,7 @@ function MobileNewIdea() {
   const router = useRouter();
   const { createProblem } = useProblems();
   const [ideaHtml, setIdeaHtml] = useState("");
+  const [ideaTitle, setIdeaTitle] = useState("");
   const [saving, setSaving] = useState(false);
   const [researching, setResearching] = useState(false);
 
@@ -33,7 +34,7 @@ function MobileNewIdea() {
   const handleSave = async () => {
     if (!plainText) return;
     setSaving(true);
-    const id = await createProblem(plainText, undefined, ideaHtml);
+    const id = await createProblem(plainText, undefined, ideaHtml, ideaTitle);
     setSaving(false);
     if (id) router.push(`/workspace/idea/${id}`);
   };
@@ -42,7 +43,7 @@ function MobileNewIdea() {
     if (!plainText) return;
     setResearching(true);
 
-    const id = await createProblem(plainText, undefined, ideaHtml);
+    const id = await createProblem(plainText, undefined, ideaHtml, ideaTitle);
     if (!id) {
       setResearching(false);
       return;
@@ -75,11 +76,18 @@ function MobileNewIdea() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col md:hidden">
-      <header className="px-6 pt-12 pb-4 flex items-center justify-between">
-        <button onClick={() => router.back()} className="w-10 h-10 flex items-center justify-center -ml-2">
+      <header className="px-6 pt-12 pb-4 flex items-center justify-between gap-3">
+        <button onClick={() => router.back()} className="w-10 h-10 flex items-center justify-center -ml-2 shrink-0">
           <ArrowLeft className="w-5 h-5 text-text-heading" />
         </button>
-        <button onClick={handleSave} disabled={saving || !plainText} className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-text-heading disabled:opacity-40">
+        <input
+          type="text"
+          value={ideaTitle}
+          onChange={(e) => setIdeaTitle(e.target.value)}
+          placeholder="Idea Title (optional)"
+          className="flex-1 min-w-0 bg-transparent text-lg font-semibold text-text-heading placeholder:text-text-muted focus:outline-none"
+        />
+        <button onClick={handleSave} disabled={saving || !plainText} className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-text-heading disabled:opacity-40">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
           Save
         </button>
@@ -126,6 +134,7 @@ function DesktopNewIdea() {
   const router = useRouter();
   const { createProblem } = useProblems();
   const [ideaHtml, setIdeaHtml] = useState("");
+  const [ideaTitle, setIdeaTitle] = useState("");
   const [saving, setSaving] = useState(false);
   const [researching, setResearching] = useState(false);
 
@@ -134,7 +143,7 @@ function DesktopNewIdea() {
   const handleSave = async () => {
     if (!plainText) return;
     setSaving(true);
-    const id = await createProblem(plainText, undefined, ideaHtml);
+    const id = await createProblem(plainText, undefined, ideaHtml, ideaTitle);
     setSaving(false);
     if (id) router.push(`/workspace/idea/${id}`);
   };
@@ -142,7 +151,7 @@ function DesktopNewIdea() {
   const handleResearch = async () => {
     if (!plainText) return;
     setResearching(true);
-    const id = await createProblem(plainText, undefined, ideaHtml);
+    const id = await createProblem(plainText, undefined, ideaHtml, ideaTitle);
     if (!id) { setResearching(false); return; }
 
     try {
@@ -173,9 +182,15 @@ function DesktopNewIdea() {
   return (
     <div className="h-full flex flex-col">
       {/* Toolbar */}
-      <div className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-gray-100 px-8 py-3 flex items-center justify-between z-10">
-        <span className="text-sm font-medium text-text-heading">New Idea</span>
-        <div className="flex items-center gap-2">
+      <div className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-gray-100 px-8 py-3 flex items-center justify-between z-10 gap-4">
+        <input
+          type="text"
+          value={ideaTitle}
+          onChange={(e) => setIdeaTitle(e.target.value)}
+          placeholder="Give your project a title..."
+          className="flex-1 min-w-0 bg-transparent text-lg font-semibold text-text-heading placeholder:text-text-muted focus:outline-none"
+        />
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={handleSave}
             disabled={saving || !plainText}
