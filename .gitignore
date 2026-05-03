@@ -41,5 +41,8 @@ yarn-error.log*
 next-env.d.ts
 
 DEPLOYMENT.md
-firebase.*
-firestore.*
+
+# planning & reference docs (local only)
+AGENT_PROMPTS.md
+IMPLEMENTATION_PLAN.md
+firstblock-docs.md

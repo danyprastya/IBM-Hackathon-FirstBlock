@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 // Routes that require authentication
 const protectedRoutes = ["/workspace", "/onboarding"];
 
-// Routes that should redirect to workspace if already authenticated
+// Routes that should redirect if already authenticated
 const authRoutes = ["/login", "/register"];
 
 // Public routes that don't require authentication
@@ -57,10 +57,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Auth routes: redirect to workspace if already authenticated
-  if (isAuthRoute && authToken) {
-    return NextResponse.redirect(new URL("/workspace", request.url));
-  }
+  // Auth routes: Let the page handle the redirect logic
+  // The login/register pages will check onboarding status and redirect appropriately
+  // We don't redirect here to avoid bypassing the onboarding check
 
   // Allow the request to proceed
   return NextResponse.next();

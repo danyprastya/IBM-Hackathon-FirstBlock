@@ -64,7 +64,7 @@ export function ChatWindow({
   return (
     <div className="flex flex-col h-full">
       {/* Messages Area */}
-      <ScrollArea className="flex-1 p-6">
+      <ScrollArea className="flex-1 p-6 overflow-scroll">
         <div className="space-y-6">
           {loading ? (
             <div className="space-y-6">
@@ -72,7 +72,7 @@ export function ChatWindow({
               {[1, 2, 3].map((i) => (
                 <div key={i} className="space-y-3">
                   <div className="flex items-start gap-3">
-                    <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />
+                    <Skeleton className="h-8 w-8 rounded-full shrink-0" />
                     <div className="flex-1 space-y-2">
                       <Skeleton className="h-4 w-24" />
                       <Skeleton className="h-20 w-full" />

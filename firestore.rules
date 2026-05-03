@@ -1,0 +1,109 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper: check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper: check if user owns the document (by doc ID matching uid)
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // ─── Top-level: Users ─────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId);
+      allow delete: if false; // Users cannot delete own account via Firestore
+      
+      // ─── Nested: Problems ─────────────────────────────────────
+      match /problems/{problemId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if false; // Always forward — never delete problems
+        
+        // ─── Nested: Researches ───────────────────────────────
+        match /researches/{researchId} {
+          allow read: if isOwner(userId);
+          allow create: if isOwner(userId);
+          allow update: if isOwner(userId);
+          allow delete: if false; // Immutable research history
+          
+          // ─── Nested: Solution Collections ─────────────────
+          match /solutionCollections/{scId} {
+            allow read: if isOwner(userId);
+            allow create: if isOwner(userId);
+            allow update: if isOwner(userId);
+            allow delete: if false;
+            
+            // ─── Nested: Solutions ────────────────────────
+            match /solutions/{solutionId} {
+              allow read: if isOwner(userId);
+              allow create: if isOwner(userId);
+              allow update: if isOwner(userId);
+              allow delete: if false;
+              
+              // ─── Nested: MVPs ─────────────────────────
+              match /mvps/{mvpId} {
+                allow read: if isOwner(userId);
+                allow create: if isOwner(userId);
+                allow update: if isOwner(userId);
+                allow delete: if false;
+              }
+              
+              // ─── Nested: Success Metrics ──────────────
+              match /successMetrics/{smId} {
+                allow read: if isOwner(userId);
+                allow create: if isOwner(userId);
+                allow update: if isOwner(userId);
+                allow delete: if false;
+              }
+              
+              // ─── Nested: PRDs ─────────────────────────
+              match /prds/{prdId} {
+                allow read: if isOwner(userId);
+                allow create: if isOwner(userId);
+                allow update: if isOwner(userId);
+                allow delete: if false;
+                
+                // ─── Nested: Phases ───────────────────
+                match /phases/{phaseId} {
+                  allow read: if isOwner(userId);
+                  allow create: if isOwner(userId);
+                  allow update: if isOwner(userId);
+                  allow delete: if false;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // ─── Top-level: Messages (legacy chat) ──────────────────────
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if false; // Messages are immutable
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    
+    // ─── Top-level: Stickies ────────────────────────────────────
+    match /stickies/{stickyId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

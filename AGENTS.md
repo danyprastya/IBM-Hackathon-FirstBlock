@@ -21,7 +21,7 @@
 | AI             | IBM Watsonx.ai via REST API (server-side only)               |
 | Authentication | Firebase Auth (client SDK + Admin SDK)                       |
 | Database       | Firebase Firestore (client SDK + Admin SDK)                  |
-| Storage        | Not yet implemented (reserved: `lib/ibm-cos/`)              |
+| Storage        | Not yet implemented (reserved: `lib/ibm-cos/`)               |
 | Icons          | Lucide React                                                 |
 | Validation     | Zod                                                          |
 | State          | React Context (AuthContext) + custom hooks                   |
