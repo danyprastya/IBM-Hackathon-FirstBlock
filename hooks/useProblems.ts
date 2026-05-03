@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useMemo } from "react";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, doc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import {
@@ -82,12 +82,25 @@ export function useProblems() {
     [uid]
   );
 
+  const deleteProblem = useCallback(
+    async (id: string) => {
+      if (!uid) return;
+      try {
+        await deleteDoc(doc(db, "users", uid, "problems", id));
+      } catch (err) {
+        console.error("Delete problem error:", err);
+      }
+    },
+    [uid]
+  );
+
   return {
     problems,
     folders,
     loading,
     error,
     createProblem,
+    deleteProblem,
   };
 }
 

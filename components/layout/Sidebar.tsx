@@ -20,7 +20,15 @@ import {
   Pencil,
   Check,
   X,
+  Trash2,
 } from "lucide-react";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
 import {
   Dialog,
   DialogContent,
@@ -88,7 +96,7 @@ function reorder<T>(arr: T[], fromIdx: number, toIdx: number): T[] {
 // FIX: listeners on outer div, NO overlay stopPropagation.
 // PointerSensor distance:8 means taps (<8px) → click fires normally.
 
-function IdeaLink({ idea, isActive }: { idea: Problem; isActive: boolean }) {
+function IdeaLink({ idea, isActive, onDelete }: { idea: Problem; isActive: boolean; onDelete: () => void }) {
   const {
     attributes,
     listeners,
@@ -151,13 +159,18 @@ function IdeaLink({ idea, isActive }: { idea: Problem; isActive: boolean }) {
   }, [isActive, editing, title]);
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className="touch-none select-none group relative"
-    >
+    <ContextMenu>
+      <ContextMenuTrigger
+        render={
+          <div
+            ref={setNodeRef}
+            style={style}
+            {...attributes}
+            {...listeners}
+            className={`touch-none select-none group relative ${isDragging ? "cursor-grabbing" : "cursor-pointer"}`}
+          />
+        }
+      >
       {editing ? (
         <div className={`flex items-center gap-1.5 pl-2 pr-2 py-1 rounded-md text-[13px] ${
           isActive ? "bg-accent-soft" : "bg-input-bg"
@@ -194,19 +207,18 @@ function IdeaLink({ idea, isActive }: { idea: Problem; isActive: boolean }) {
         </Link>
       )}
 
-      {/* Pencil icon for hover-based rename (like FolderRow) */}
-      {!editing && (
-        <span
-          role="button"
-          onClick={startEdit}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-gray-200 transition-all z-10"
-          title="Rename idea (F2)"
-        >
-          <Pencil className="w-3 h-3 text-text-muted" />
-        </span>
-      )}
-    </div>
+
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-48">
+        <ContextMenuItem onClick={startEdit}>
+          <Pencil className="w-4 h-4 mr-2" /> Rename
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={onDelete} className="text-danger focus:text-danger focus:bg-danger/10">
+          <Trash2 className="w-4 h-4 mr-2" /> Delete
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 
@@ -219,6 +231,8 @@ interface FolderRowProps {
   isOver: boolean;
   onToggle: () => void;
   onRename: (newName: string) => void;
+  onNewIdeaInside: () => void;
+  onDelete: () => void;
 }
 
 function FolderRow({
@@ -228,6 +242,8 @@ function FolderRow({
   isOver,
   onToggle,
   onRename,
+  onNewIdeaInside,
+  onDelete,
 }: FolderRowProps) {
   const {
     attributes,
@@ -262,13 +278,18 @@ function FolderRow({
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`rounded-md transition-colors ${
-        isOver ? "bg-accent-glow ring-1 ring-accent-primary/30" : ""
-      }`}
-    >
+    <ContextMenu>
+      <ContextMenuTrigger
+        render={
+          <div
+            ref={setNodeRef}
+            style={style}
+            className={`rounded-md transition-colors ${
+              isOver ? "bg-accent-glow ring-1 ring-accent-primary/30" : ""
+            } ${isDragging ? "cursor-grabbing" : "cursor-pointer"}`}
+          />
+        }
+      >
       <button
         onClick={onToggle}
         className="w-full flex items-center gap-1 px-1 py-1 rounded-md text-[13px] transition-colors group hover:bg-input-bg"
@@ -308,22 +329,29 @@ function FolderRow({
         )}
 
         {!editing && (
-          <>
-            <span className="ml-auto text-[11px] text-text-muted group-hover:opacity-0 transition-opacity">
-              {ideaCount}
-            </span>
-            <span
-              role="button"
-              onClick={startEdit}
-              className="ml-1 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-gray-200 transition-all"
-              title="Rename folder"
-            >
-              <Pencil className="w-3 h-3 text-text-muted" />
-            </span>
-          </>
+          <span className="ml-auto text-[11px] text-text-muted transition-opacity">
+            {ideaCount}
+          </span>
         )}
       </button>
-    </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-48">
+        <ContextMenuItem onClick={onNewIdeaInside}>
+          <Plus className="w-4 h-4 mr-2" /> New Project Inside
+        </ContextMenuItem>
+        <ContextMenuItem onClick={startEdit}>
+          <Pencil className="w-4 h-4 mr-2" /> Rename
+        </ContextMenuItem>
+        {folderName !== "Drafts" && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={onDelete} className="text-danger focus:text-danger focus:bg-danger/10">
+              <Trash2 className="w-4 h-4 mr-2" /> Delete Folder
+            </ContextMenuItem>
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 
@@ -382,7 +410,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const { userData } = useUserData();
-  const { folders: firestoreFolders, loading: problemsLoading, createProblem } = useProblems();
+  const { folders: firestoreFolders, loading: problemsLoading, createProblem, deleteProblem } = useProblems();
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(["Drafts"]));
   const [searchQuery, setSearchQuery] = useState("");
@@ -402,6 +430,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const [showNewIdeaDialog, setShowNewIdeaDialog] = useState(false);
   const [newIdeaTitle, setNewIdeaTitle] = useState("");
   const [creatingIdea, setCreatingIdea] = useState(false);
+  const [newIdeaTargetFolder, setNewIdeaTargetFolder] = useState<string | undefined>(undefined);
 
   const uid = user?.uid ?? null;
   const displayName = userData?.name || user?.displayName || "User";
@@ -634,6 +663,27 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     persistConfig(nextOrder, nextEmpty, nextIdeaOrder);
   };
 
+  const handleDeleteFolder = async (folderName: string) => {
+    if (folderName === "Drafts") return;
+    const problems = firestoreFolders[folderName] ?? [];
+    await Promise.all(
+      problems.map((p) => actions.updateProblem(p.id, { folder: "Drafts" }).catch(console.error))
+    );
+    const nextEmpty = emptyFolders.filter((f) => f !== folderName);
+    const nextOrder = folderOrder.filter((f) => f !== folderName);
+    const nextIdeaOrder = { ...ideaOrderByFolder };
+    delete nextIdeaOrder[folderName];
+    setEmptyFolders(nextEmpty);
+    setFolderOrder(nextOrder);
+    setIdeaOrderByFolder(nextIdeaOrder);
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      next.delete(folderName);
+      return next;
+    });
+    persistConfig(nextOrder, nextEmpty, nextIdeaOrder);
+  };
+
   // ── Drag overlays ────────────────────────────────────────────────
 
   const getActiveIdea = (): Problem | null => {
@@ -702,7 +752,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* New Idea + New Folder */}
       <div className="px-3 pb-3 flex gap-2">
         <button
-          onClick={() => setShowNewIdeaDialog(true)}
+          onClick={() => {
+            setNewIdeaTargetFolder(undefined);
+            setShowNewIdeaDialog(true);
+          }}
           className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-accent-primary text-white text-sm font-medium hover:bg-accent-hover transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -766,6 +819,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                         isOver={overFolder === folderName}
                         onToggle={() => toggleFolder(folderName)}
                         onRename={(newName) => handleRenameFolder(folderName, newName)}
+                        onNewIdeaInside={() => {
+                          setNewIdeaTargetFolder(folderName);
+                          setShowNewIdeaDialog(true);
+                        }}
+                        onDelete={() => handleDeleteFolder(folderName)}
                       />
 
                       {isExpanded && (
@@ -791,6 +849,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                                     key={idea.id}
                                     idea={idea}
                                     isActive={pathname === `/workspace/idea/${idea.id}`}
+                                    onDelete={() => deleteProblem(idea.id)}
                                   />
                                 ))
                               )}
@@ -867,7 +926,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               onKeyDown={async (e) => {
                 if (e.key === "Enter" && !creatingIdea && newIdeaTitle.trim()) {
                   setCreatingIdea(true);
-                  const id = await createProblem("", undefined, "", newIdeaTitle.trim());
+                  const id = await createProblem("", undefined, newIdeaTargetFolder || "Drafts", newIdeaTitle.trim());
                   setCreatingIdea(false);
                   setShowNewIdeaDialog(false);
                   setNewIdeaTitle("");
@@ -888,7 +947,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               disabled={creatingIdea || !newIdeaTitle.trim()}
               onClick={async () => {
                 setCreatingIdea(true);
-                const id = await createProblem("", undefined, "", newIdeaTitle.trim());
+                const id = await createProblem("", undefined, newIdeaTargetFolder || "Drafts", newIdeaTitle.trim());
                 setCreatingIdea(false);
                 setShowNewIdeaDialog(false);
                 setNewIdeaTitle("");
