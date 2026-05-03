@@ -35,6 +35,11 @@ const EMPTY_PRDS: PRD[] = [];
 const EMPTY_PHASES: Phase[] = [];
 const EMPTY_FOLDERS: Record<string, Problem[]> = {};
 
+// Cache for selectFolders: keyed by the problems array reference.
+// Same array ref → same folders object → no new snapshot reference →
+// no infinite loop in React's useSyncExternalStore.
+const foldersCache = new WeakMap<Problem[], Record<string, Problem[]>>();
+
 // ─── Problems ─────────────────────────────────────────────────────
 
 export const selectProblems =
@@ -57,11 +62,16 @@ export const selectFolders =
     if (!uid) return EMPTY_FOLDERS;
     const list = state.problemsByUid[uid];
     if (!list || list.length === 0) return EMPTY_FOLDERS;
-    return list.reduce<Record<string, Problem[]>>((acc, p) => {
+    // Return cached result if the array reference hasn't changed.
+    const cached = foldersCache.get(list);
+    if (cached) return cached;
+    const folders = list.reduce<Record<string, Problem[]>>((acc, p) => {
       const f = p.folder ?? "Drafts";
       (acc[f] ??= []).push(p);
       return acc;
     }, {});
+    foldersCache.set(list, folders);
+    return folders;
   };
 
 // ─── Researches ───────────────────────────────────────────────────
