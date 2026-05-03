@@ -236,14 +236,9 @@ export interface ProblemDocument {
   id: string;
   /** Verbatim founder text. Never rewritten by AI. */
   rawInput: string;
-  /**
-   * Short display label. AI generates this once on creation, then never touches
-   * it again. Founder may rename via PATCH /api/agents/problems/:id.
-   * Empty string until title-generation task completes — UI falls back to truncated rawInput.
-   */
-  title: string;
-  /** String label for organization (e.g. "Drafts", "Validated"). User-supplied. */
-  folder?: string;
+  /** Rich HTML version of the idea from the editor */
+  htmlContent?: string;
+  cleanedStatement: string;
   inputType: "text" | "voice";
   createdAt: Date;
 }

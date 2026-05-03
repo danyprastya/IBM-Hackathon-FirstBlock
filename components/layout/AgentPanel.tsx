@@ -94,7 +94,7 @@ export function AgentPanel({ collapsed, onToggle }: AgentPanelProps) {
 
   if (collapsed) {
     return (
-      <aside className="hidden lg:flex w-12 h-screen bg-white border-l border-gray-200 flex-col items-center py-4 gap-3">
+      <aside className="hidden md:flex w-12 h-screen bg-white border-l border-gray-200 flex-col items-center py-4 gap-3 sidebar-transition">
         <button onClick={onToggle} className="p-2 rounded-lg hover:bg-input-bg transition-colors" title="Open AI panel">
           <PanelRightOpen className="size-4 text-text-secondary" />
         </button>
@@ -104,7 +104,7 @@ export function AgentPanel({ collapsed, onToggle }: AgentPanelProps) {
   }
 
   return (
-    <aside className="hidden lg:flex w-72 h-screen bg-white border-l border-gray-200 flex-col">
+    <aside className="hidden md:flex w-80 h-screen bg-white border-l border-gray-200 flex-col sidebar-transition">
       {/* Header */}
       <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-gray-100">
         <div className="flex items-center gap-2">

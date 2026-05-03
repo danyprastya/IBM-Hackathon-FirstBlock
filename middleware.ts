@@ -44,18 +44,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Onboarding guard: if user tries to access /workspace without
-  // completing onboarding, block it. We store onboarding status in a
-  // lightweight cookie set after onboarding completion.
-  if (pathname.startsWith("/workspace") && authToken) {
-    const onboardingDone = request.cookies.get("__onboarding_done")?.value;
-    if (!onboardingDone) {
-      // User has auth but no onboarding cookie — redirect to onboarding.
-      // The onboarding page will check Firestore and set the cookie if
-      // the user already completed onboarding (returning user).
-      return NextResponse.redirect(new URL("/onboarding", request.url));
-    }
-  }
+
 
   // Auth routes: if user is authenticated, redirect to workspace
   if (isAuthRoute && authToken) {

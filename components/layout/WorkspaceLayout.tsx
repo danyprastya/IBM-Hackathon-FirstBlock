@@ -13,7 +13,7 @@ export function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
   const [agentPanelCollapsed, setAgentPanelCollapsed] = useState(true);
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden">
+    <div className="flex w-full bg-white overflow-hidden">
       {/* Left: Folder explorer sidebar (desktop only) */}
       <Sidebar
         collapsed={sidebarCollapsed}

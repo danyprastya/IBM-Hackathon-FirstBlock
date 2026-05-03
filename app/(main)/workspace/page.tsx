@@ -26,8 +26,8 @@ function MobileHome() {
   );
 
   return (
-    <div className="min-h-screen bg-white flex flex-col md:hidden">
-      <header className="px-6 pt-12 pb-4 flex items-start justify-between">
+    <div className="h-screen bg-white flex flex-col md:hidden overflow-y-auto">
+      <header className="px-6 pt-12 pb-4 flex items-start justify-between flex-shrink-0">
         <div className="flex items-center gap-2">
           <div className="size-8 bg-text-heading rounded-lg flex items-center justify-center">
             <div className="size-4 border-2 border-white rounded-sm" />
@@ -43,7 +43,7 @@ function MobileHome() {
         </div>
       </header>
 
-      <div className="px-6 pb-6">
+      <div className="px-6 pb-4">
         <h1 className="text-2xl font-bold text-text-heading leading-tight">
           {greeting}, <span className="font-extrabold">{firstName}</span>
           <br />
@@ -51,7 +51,7 @@ function MobileHome() {
         </h1>
       </div>
 
-      <div className="px-6 pb-6">
+      <div className="px-6 pb-4">
         <div className="flex items-center gap-3 px-4 py-3 bg-input-bg rounded-xl">
           <Search className="size-4 text-text-muted flex-shrink-0" />
           <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="What were you working on?" className="flex-1 bg-transparent text-text-heading placeholder:text-text-muted text-sm focus:outline-none" />
@@ -59,7 +59,7 @@ function MobileHome() {
       </div>
 
       {/* Recents */}
-      <div className="px-6 pb-6">
+      <div className="px-6 pb-4">
         <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Recents</h2>
         {loading ? (
           <div className="flex items-center gap-2 py-4 text-text-muted">
@@ -85,7 +85,7 @@ function MobileHome() {
       </div>
 
       {/* Folders */}
-      <div className="px-6 flex-1">
+      <div className="px-6 pb-20 flex-1">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider">Folders</h2>
         </div>
@@ -126,61 +126,59 @@ function DesktopHome() {
   const recents = problems.slice(0, 10);
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold text-text-heading mb-1">{greeting}, {firstName}</h1>
-        <p className="text-text-secondary text-sm mb-8">Pick up where you left off, or dump a new idea.</p>
+    <div className="h-full overflow-y-auto p-8">
+      <h1 className="text-3xl font-bold text-text-heading mb-1">{greeting}, {firstName}</h1>
+      <p className="text-text-secondary text-sm mb-8">Pick up where you left off, or dump a new idea.</p>
 
-        {/* Quick actions */}
-        <div className="grid grid-cols-3 gap-4 mb-10 stagger-fade">
-          <Link href="/workspace/new" className="p-5 rounded-2xl border-2 border-dashed border-gray-200 hover:border-accent-primary hover:bg-accent-soft transition-all text-center group card-hover cursor-pointer">
-            <Plus className="size-8 mx-auto text-text-muted group-hover:text-accent-primary transition-colors mb-2" />
-            <span className="text-sm font-semibold text-text-heading">New Idea</span>
-            <p className="text-xs text-text-muted mt-1">Start from scratch</p>
-          </Link>
-          <div className="p-5 rounded-2xl border border-gray-200 hover:border-accent-primary hover:bg-accent-soft transition-all text-center cursor-pointer group card-hover">
-            <LayoutTemplate className="size-8 mx-auto text-text-muted group-hover:text-accent-primary transition-colors mb-2" />
-            <span className="text-sm font-semibold text-text-heading">Templates</span>
-            <p className="text-xs text-text-muted mt-1">SaaS, service, product</p>
-          </div>
-          <div className="p-5 rounded-2xl border border-gray-200 hover:border-accent-primary hover:bg-accent-soft transition-all text-center cursor-pointer group card-hover">
-            <Mic className="size-8 mx-auto text-text-muted group-hover:text-accent-primary transition-colors mb-2" />
-            <span className="text-sm font-semibold text-text-heading">Voice Dump</span>
-            <p className="text-xs text-text-muted mt-1">Talk through your idea</p>
-          </div>
+      {/* Quick actions */}
+      <div className="grid grid-cols-2 gap-4 mb-10 stagger-fade">
+        <Link href="/workspace/new" className="p-5 rounded-2xl border-2 border-dashed border-gray-200 hover:border-accent-primary hover:bg-accent-soft transition-all text-center group card-hover cursor-pointer">
+          <Plus className="size-8 mx-auto text-text-muted group-hover:text-accent-primary transition-colors mb-2" />
+          <span className="text-sm font-semibold text-text-heading">New Idea</span>
+          <p className="text-xs text-text-muted mt-1">Start from scratch</p>
+        </Link>
+        <div className="p-5 rounded-2xl border border-gray-200 hover:border-accent-primary hover:bg-accent-soft transition-all text-center cursor-pointer group card-hover">
+          <LayoutTemplate className="size-8 mx-auto text-text-muted group-hover:text-accent-primary transition-colors mb-2" />
+          <span className="text-sm font-semibold text-text-heading">Templates</span>
+          <p className="text-xs text-text-muted mt-1">SaaS, service, product</p>
         </div>
-
-        {/* Recent activity */}
-        <h2 className="text-sm font-semibold text-text-heading mb-4">Recent Activity</h2>
-        {loading ? (
-          <div className="flex items-center gap-2 py-8 justify-center text-text-muted">
-            <Loader2 className="size-4 animate-spin" />
-            <span className="text-sm">Loading...</span>
-          </div>
-        ) : recents.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-text-muted text-sm">No ideas yet. Start by creating one!</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2 stagger-fade">
-            {recents.map((item) => {
-              const title = item.title || item.rawInput.slice(0, 60) + (item.rawInput.length > 60 ? "…" : "");
-              return (
-                <Link key={item.id} href={`/workspace/idea/${item.id}`} className="flex items-center justify-between p-4 rounded-xl border border-gray-200 hover:border-accent-primary hover:bg-input-bg transition-all card-hover cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <FileText className="size-5 text-text-muted" />
-                    <div>
-                      <h3 className="text-sm font-semibold text-text-heading">{title}</h3>
-                      <p className="text-xs text-text-muted">{item.folder || "Drafts"} · {item.createdAt.toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="size-4 text-text-muted" />
-                </Link>
-              );
-            })}
-          </div>
-        )}
+        {/* <div className="p-5 rounded-2xl border border-gray-200 hover:border-accent-primary hover:bg-accent-soft transition-all text-center cursor-pointer group card-hover">
+          <Mic className="size-8 mx-auto text-text-muted group-hover:text-accent-primary transition-colors mb-2" />
+          <span className="text-sm font-semibold text-text-heading">Voice Dump</span>
+          <p className="text-xs text-text-muted mt-1">Talk through your idea</p>
+        </div> */}
       </div>
+
+      {/* Recent activity */}
+      <h2 className="text-sm font-semibold text-text-heading mb-4">Recent Activity</h2>
+      {loading ? (
+        <div className="flex items-center gap-2 py-8 justify-center text-text-muted">
+          <Loader2 className="size-4 animate-spin" />
+          <span className="text-sm">Loading...</span>
+        </div>
+      ) : recents.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-text-muted text-sm">No ideas yet. Start by creating one!</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2 stagger-fade">
+          {recents.map((item) => {
+            const title = item.title || item.rawInput.slice(0, 60) + (item.rawInput.length > 60 ? "…" : "");
+            return (
+              <Link key={item.id} href={`/workspace/idea/${item.id}`} className="flex items-center justify-between p-4 rounded-xl border border-gray-200 hover:border-accent-primary hover:bg-input-bg transition-all card-hover cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <FileText className="size-5 text-text-muted" />
+                  <div>
+                    <h3 className="text-sm font-semibold text-text-heading">{title}</h3>
+                    <p className="text-xs text-text-muted">{item.folder || "Drafts"} · {item.createdAt.toLocaleDateString()}</p>
+                  </div>
+                </div>
+                <ChevronRight className="size-4 text-text-muted" />
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -188,7 +186,11 @@ function DesktopHome() {
 export default function WorkspacePage() {
   return (
     <>
-      <MobileHome />
+      {/* Mobile only */}
+      <div className="md:hidden">
+        <MobileHome />
+      </div>
+      {/* Desktop only */}
       <div className="hidden md:flex h-screen">
         <WorkspaceLayout>
           <DesktopHome />

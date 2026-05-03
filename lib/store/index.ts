@@ -52,6 +52,7 @@ const conv = {
     return {
       id: snap.id,
       rawInput: d.rawInput ?? "",
+      htmlContent: d.htmlContent ?? "",
       // Migration-safe: prefer new `title`, fall back to legacy `cleanedStatement`.
       title: d.title ?? d.cleanedStatement ?? "",
       inputType: d.inputType ?? "text",

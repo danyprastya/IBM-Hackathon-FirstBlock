@@ -21,6 +21,8 @@ export type {
 export interface Problem {
   id: string;
   rawInput: string;
+  /** Rich HTML version of the idea from the editor */
+  htmlContent?: string;
   /** AI-generated short title; "" until title-generation task completes. */
   title: string;
   inputType: "text" | "voice";

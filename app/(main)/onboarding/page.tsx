@@ -118,9 +118,9 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col bg-white items-center">
       {/* Progress dots */}
-      <div className="px-8 pt-12 pb-4">
+      <div className="px-8 pt-12 pb-4 w-full max-w-6xl ">
         <div className="flex items-center justify-center gap-2">
           {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
             <div
@@ -136,7 +136,7 @@ export default function OnboardingPage() {
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto px-8 pb-32">
+      <div className="flex-1 overflow-y-auto px-8 pb-32 w-full max-w-6xl">
         {error && (
           <div className="p-3 mb-4 rounded-xl bg-danger/10 border border-danger/20 text-danger text-sm">
             {error}
@@ -383,7 +383,8 @@ export default function OnboardingPage() {
       </div>
 
       {/* Fixed bottom nav */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-8 py-6 flex items-center gap-4">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-8 py-6 flex items-center justify-center">
+        <div className="flex items-center gap-4 w-full max-w-6xl">
         {step > 1 && (
           <button
             type="button"
@@ -420,6 +421,7 @@ export default function OnboardingPage() {
             )}
           </button>
         )}
+        </div>
       </div>
     </div>
   );

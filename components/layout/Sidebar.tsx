@@ -50,6 +50,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const handleSignOut = async () => {
     try {
       await signOut();
+      window.location.href = "/login";
     } catch (err) {
       console.error("Sign out error:", err);
     }
