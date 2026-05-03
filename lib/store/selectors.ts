@@ -3,13 +3,13 @@
 // Pattern: parameterized selectors are factories that return a (state) =>
 // fn so they can be passed to useStore directly:
 //
-//   const sel = useMemo(() => selectActiveResearch(problemId), [problemId]);
-//   const research = usePipelineStore(sel);
+//   const research = usePipelineStore(selectActiveResearch(problemId));
 //
-// IMPORTANT: All fallback values use module-level constants so that
-// `getServerSnapshot` always returns the same reference. Returning a
-// fresh `[]` or `{}` on every call causes React 19's useSyncExternalStore
-// to detect an uncached snapshot and trigger an infinite loop.
+// Stability: every list selector returns either the actual stored array
+// (whose reference is stable until a snapshot replaces it) or the same
+// frozen empty array. Never `?? []` — that creates a new array per read
+// and breaks React's useSyncExternalStore snapshot equality, infinite-
+// looping the consumer.
 
 import { keys } from "./types";
 import type {
@@ -24,28 +24,15 @@ import type {
   Phase,
 } from "./types";
 
-// ─── Stable empty defaults (same reference every call) ────────────
-const EMPTY_PROBLEMS: Problem[] = [];
-const EMPTY_RESEARCHES: Research[] = [];
-const EMPTY_SOLUTION_COLLECTIONS: SolutionCollection[] = [];
-const EMPTY_SOLUTIONS: Solution[] = [];
-const EMPTY_MVPS: MVP[] = [];
-const EMPTY_SUCCESS_METRICS: SuccessMetrics[] = [];
-const EMPTY_PRDS: PRD[] = [];
-const EMPTY_PHASES: Phase[] = [];
-const EMPTY_FOLDERS: Record<string, Problem[]> = {};
-
-// Cache for selectFolders: keyed by the problems array reference.
-// Same array ref → same folders object → no new snapshot reference →
-// no infinite loop in React's useSyncExternalStore.
-const foldersCache = new WeakMap<Problem[], Record<string, Problem[]>>();
+const EMPTY_ARRAY: readonly unknown[] = Object.freeze([]);
+const empty = <T>(): T[] => EMPTY_ARRAY as unknown as T[];
 
 // ─── Problems ─────────────────────────────────────────────────────
 
 export const selectProblems =
   (uid: string | null) =>
   (state: PipelineState): Problem[] =>
-    uid ? state.problemsByUid[uid] ?? EMPTY_PROBLEMS : EMPTY_PROBLEMS;
+    (uid && state.problemsByUid[uid]) || empty<Problem>();
 
 export const selectProblem =
   (uid: string | null, problemId: string) =>
@@ -55,39 +42,24 @@ export const selectProblem =
     return list?.find((p) => p.id === problemId) ?? null;
   };
 
-/** Group problems by folder label, default "Drafts". */
-export const selectFolders =
-  (uid: string | null) =>
-  (state: PipelineState): Record<string, Problem[]> => {
-    if (!uid) return EMPTY_FOLDERS;
-    const list = state.problemsByUid[uid];
-    if (!list || list.length === 0) return EMPTY_FOLDERS;
-    // Return cached result if the array reference hasn't changed.
-    const cached = foldersCache.get(list);
-    if (cached) return cached;
-    const folders = list.reduce<Record<string, Problem[]>>((acc, p) => {
-      const f = p.folder ?? "Drafts";
-      (acc[f] ??= []).push(p);
-      return acc;
-    }, {});
-    foldersCache.set(list, folders);
-    return folders;
-  };
+// NOTE: selectFolders intentionally removed. Folder grouping derives a new
+// object on every call — that's fine inside a useMemo in the consuming hook
+// (see useProblems), but it cannot live as a store selector or it triggers
+// the same snapshot-equality infinite loop fixed above.
 
 // ─── Researches ───────────────────────────────────────────────────
 
 export const selectResearches =
   (problemId: string) =>
   (state: PipelineState): Research[] =>
-    state.researchesByProblem[keys.research(problemId)] ?? EMPTY_RESEARCHES;
+    state.researchesByProblem[keys.research(problemId)] || empty<Research>();
 
 /** The latest research for a problem (by createdAt asc → last item). */
 export const selectActiveResearch =
   (problemId: string) =>
   (state: PipelineState): Research | null => {
     const list = state.researchesByProblem[keys.research(problemId)];
-    if (!list || list.length === 0) return null;
-    return list[list.length - 1] ?? null;
+    return list && list.length > 0 ? list[list.length - 1] : null;
   };
 
 // ─── Solution collections + solutions ─────────────────────────────
@@ -97,62 +69,72 @@ export const selectSolutionCollections =
   (state: PipelineState): SolutionCollection[] =>
     state.solutionCollectionsByResearch[
       keys.solutionCollection(problemId, researchId)
-    ] ?? EMPTY_SOLUTION_COLLECTIONS;
+    ] || empty<SolutionCollection>();
 
 export const selectActiveSolutionCollection =
   (problemId: string, researchId: string) =>
   (state: PipelineState): SolutionCollection | null => {
-    const list = selectSolutionCollections(problemId, researchId)(state);
-    if (list.length === 0) return null;
-    return list[list.length - 1] ?? null;
+    const list =
+      state.solutionCollectionsByResearch[
+        keys.solutionCollection(problemId, researchId)
+      ];
+    return list && list.length > 0 ? list[list.length - 1] : null;
   };
 
 export const selectSolutions =
   (problemId: string, researchId: string, scId: string) =>
   (state: PipelineState): Solution[] =>
-    state.solutionsByCollection[keys.solution(problemId, researchId, scId)] ?? EMPTY_SOLUTIONS;
+    state.solutionsByCollection[keys.solution(problemId, researchId, scId)] ||
+    empty<Solution>();
 
 // ─── MVP / Metrics / PRD / Phases (latest by createdAt asc) ───────
 
-const latest = <T extends { createdAt: Date }>(arr: T[] | undefined): T | null =>
+const lastOrNull = <T>(arr: T[] | undefined): T | null =>
   arr && arr.length > 0 ? arr[arr.length - 1] : null;
 
 export const selectMvps =
   (problemId: string, researchId: string, scId: string, solId: string) =>
   (state: PipelineState): MVP[] =>
-    state.mvpsBySolution[keys.mvp(problemId, researchId, scId, solId)] ?? EMPTY_MVPS;
+    state.mvpsBySolution[keys.mvp(problemId, researchId, scId, solId)] ||
+    empty<MVP>();
 
 export const selectActiveMvp =
   (problemId: string, researchId: string, scId: string, solId: string) =>
   (state: PipelineState): MVP | null =>
-    latest(selectMvps(problemId, researchId, scId, solId)(state));
+    lastOrNull(state.mvpsBySolution[keys.mvp(problemId, researchId, scId, solId)]);
 
 export const selectSuccessMetricsList =
   (problemId: string, researchId: string, scId: string, solId: string) =>
   (state: PipelineState): SuccessMetrics[] =>
     state.successMetricsBySolution[
       keys.successMetrics(problemId, researchId, scId, solId)
-    ] ?? EMPTY_SUCCESS_METRICS;
+    ] || empty<SuccessMetrics>();
 
 export const selectActiveSuccessMetrics =
   (problemId: string, researchId: string, scId: string, solId: string) =>
   (state: PipelineState): SuccessMetrics | null =>
-    latest(selectSuccessMetricsList(problemId, researchId, scId, solId)(state));
+    lastOrNull(
+      state.successMetricsBySolution[
+        keys.successMetrics(problemId, researchId, scId, solId)
+      ]
+    );
 
 export const selectPrds =
   (problemId: string, researchId: string, scId: string, solId: string) =>
   (state: PipelineState): PRD[] =>
-    state.prdsBySolution[keys.prd(problemId, researchId, scId, solId)] ?? EMPTY_PRDS;
+    state.prdsBySolution[keys.prd(problemId, researchId, scId, solId)] ||
+    empty<PRD>();
 
 export const selectActivePrd =
   (problemId: string, researchId: string, scId: string, solId: string) =>
   (state: PipelineState): PRD | null =>
-    latest(selectPrds(problemId, researchId, scId, solId)(state));
+    lastOrNull(state.prdsBySolution[keys.prd(problemId, researchId, scId, solId)]);
 
 export const selectPhases =
   (problemId: string, researchId: string, scId: string, solId: string, prdId: string) =>
   (state: PipelineState): Phase[] =>
-    state.phasesByPrd[keys.phase(problemId, researchId, scId, solId, prdId)] ?? EMPTY_PHASES;
+    state.phasesByPrd[keys.phase(problemId, researchId, scId, solId, prdId)] ||
+    empty<Phase>();
 
 // ─── Loading / errors ─────────────────────────────────────────────
 

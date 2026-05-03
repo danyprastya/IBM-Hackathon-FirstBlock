@@ -13,6 +13,13 @@ import type { Problem } from "@/lib/store";
 
 export type { Problem };
 
+/**
+ * Live list of the user's problems. Mounts a Firestore listener (ref-counted
+ * so multiple components share one), exposes folder grouping derived locally,
+ * and surfaces the create/update mutations.
+ *
+ * Backwards-compatible shape with the previous direct-Firestore hook.
+ */
 export function useProblems() {
   const { user } = useAuth();
   const uid = user?.uid ?? null;
@@ -23,19 +30,19 @@ export function useProblems() {
     return subscriptions.problems(uid);
   }, [uid]);
 
-  // Memoize selectors so their reference stays stable across renders.
-  // Without this, each render creates a new selector fn → Zustand's
-  // useSyncExternalStore sees a new getServerSnapshot → infinite loop.
-  const selectProblems = useMemo(() => selectors.selectProblems(uid), [uid]);
-  const selectFolders = useMemo(() => selectors.selectFolders(uid), [uid]);
-  const loadingKey = `problems:${uid}`;
-  const selectLoading = useMemo(() => selectors.selectLoading(loadingKey), [loadingKey]);
-  const selectError = useMemo(() => selectors.selectError(loadingKey), [loadingKey]);
+  const problems = usePipelineStore(selectors.selectProblems(uid));
+  const loading = usePipelineStore(selectors.selectLoading(`problems:${uid ?? ""}`));
+  const error = usePipelineStore(selectors.selectError(`problems:${uid ?? ""}`));
 
-  const problems = usePipelineStore(selectProblems);
-  const folders = usePipelineStore(selectFolders);
-  const loading = usePipelineStore(selectLoading);
-  const error = usePipelineStore(selectError);
+  // Group locally so the store doesn't churn a new object every render
+  // (which would re-trigger useSyncExternalStore and infinite-loop).
+  const folders = useMemo<Record<string, Problem[]>>(() => {
+    return problems.reduce<Record<string, Problem[]>>((acc, p) => {
+      const f = p.folder ?? "Drafts";
+      (acc[f] ??= []).push(p);
+      return acc;
+    }, {});
+  }, [problems]);
 
   // Create a new problem (raw dump)
   const createProblem = useCallback(
