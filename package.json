@@ -13,7 +13,6 @@
   "dependencies": {
     "@ai-sdk/react": "^3.0.176",
     "@base-ui/react": "^1.4.1",
-    "@openrouter/ai-sdk-provider": "^2.9.0",
     "@tiptap/extension-heading": "^3.22.5",
     "@tiptap/extension-placeholder": "^3.22.5",
     "@tiptap/extension-text-align": "^3.22.5",
