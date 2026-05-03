@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import {
   usePipelineStore,
@@ -22,15 +22,16 @@ export function useResearch(problemId: string | null, researchId: string | null)
     return subscriptions.researches(uid, problemId);
   }, [uid, problemId]);
 
-  const list = usePipelineStore(
-    selectors.selectResearches(problemId ?? "")
-  );
-  const loading = usePipelineStore(
-    selectors.selectLoading(`researches:${uid ?? ""}:${problemId ?? ""}`)
-  );
-  const error = usePipelineStore(
-    selectors.selectError(`researches:${uid ?? ""}:${problemId ?? ""}`)
-  );
+  const pid = problemId ?? "";
+  const loadKey = `researches:${uid ?? ""}:${pid}`;
+
+  const selectResearches = useMemo(() => selectors.selectResearches(pid), [pid]);
+  const selectLoading = useMemo(() => selectors.selectLoading(loadKey), [loadKey]);
+  const selectError = useMemo(() => selectors.selectError(loadKey), [loadKey]);
+
+  const list = usePipelineStore(selectResearches);
+  const loading = usePipelineStore(selectLoading);
+  const error = usePipelineStore(selectError);
 
   const research: Research | null = researchId
     ? list.find((r) => r.id === researchId) ?? null

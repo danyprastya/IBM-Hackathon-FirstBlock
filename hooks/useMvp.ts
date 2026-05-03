@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { usePipelineStore, subscriptions, selectors } from "@/lib/store";
 
@@ -19,17 +19,19 @@ export function useMvps(
     return subscriptions.mvps(uid, problemId, researchId, scId, solId);
   }, [uid, problemId, researchId, scId, solId]);
 
-  const mvps = usePipelineStore(
-    selectors.selectMvps(problemId ?? "", researchId ?? "", scId ?? "", solId ?? "")
-  );
-  const active = usePipelineStore(
-    selectors.selectActiveMvp(problemId ?? "", researchId ?? "", scId ?? "", solId ?? "")
-  );
-  const loading = usePipelineStore(
-    selectors.selectLoading(
-      `mvps:${uid ?? ""}:${problemId ?? ""}:${researchId ?? ""}:${scId ?? ""}:${solId ?? ""}`
-    )
-  );
+  const p = problemId ?? "";
+  const r = researchId ?? "";
+  const s = scId ?? "";
+  const sol = solId ?? "";
+  const loadKey = `mvps:${uid ?? ""}:${p}:${r}:${s}:${sol}`;
+
+  const selectMvps = useMemo(() => selectors.selectMvps(p, r, s, sol), [p, r, s, sol]);
+  const selectActive = useMemo(() => selectors.selectActiveMvp(p, r, s, sol), [p, r, s, sol]);
+  const selectLoading = useMemo(() => selectors.selectLoading(loadKey), [loadKey]);
+
+  const mvps = usePipelineStore(selectMvps);
+  const active = usePipelineStore(selectActive);
+  const loading = usePipelineStore(selectLoading);
 
   return { mvps, active, loading };
 }

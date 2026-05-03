@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { usePipelineStore, subscriptions, selectors } from "@/lib/store";
 
@@ -19,16 +19,21 @@ export function usePhases(
     return subscriptions.phases(uid, problemId, researchId, scId, solId, prdId);
   }, [uid, problemId, researchId, scId, solId, prdId]);
 
-  const phases = usePipelineStore(
-    selectors.selectPhases(
-      problemId ?? "", researchId ?? "", scId ?? "", solId ?? "", prdId ?? ""
-    )
+  const p = problemId ?? "";
+  const r = researchId ?? "";
+  const s = scId ?? "";
+  const sol = solId ?? "";
+  const prd = prdId ?? "";
+  const loadKey = `phases:${uid ?? ""}:${p}:${r}:${s}:${sol}:${prd}`;
+
+  const selectPhases = useMemo(
+    () => selectors.selectPhases(p, r, s, sol, prd),
+    [p, r, s, sol, prd]
   );
-  const loading = usePipelineStore(
-    selectors.selectLoading(
-      `phases:${uid ?? ""}:${problemId ?? ""}:${researchId ?? ""}:${scId ?? ""}:${solId ?? ""}:${prdId ?? ""}`
-    )
-  );
+  const selectLoading = useMemo(() => selectors.selectLoading(loadKey), [loadKey]);
+
+  const phases = usePipelineStore(selectPhases);
+  const loading = usePipelineStore(selectLoading);
 
   return { phases, loading };
 }

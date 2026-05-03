@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { usePipelineStore, subscriptions, selectors } from "@/lib/store";
 
@@ -18,21 +18,25 @@ export function useSuccessMetrics(
     return subscriptions.successMetrics(uid, problemId, researchId, scId, solId);
   }, [uid, problemId, researchId, scId, solId]);
 
-  const list = usePipelineStore(
-    selectors.selectSuccessMetricsList(
-      problemId ?? "", researchId ?? "", scId ?? "", solId ?? ""
-    )
+  const p = problemId ?? "";
+  const r = researchId ?? "";
+  const s = scId ?? "";
+  const sol = solId ?? "";
+  const loadKey = `successMetrics:${uid ?? ""}:${p}:${r}:${s}:${sol}`;
+
+  const selectList = useMemo(
+    () => selectors.selectSuccessMetricsList(p, r, s, sol),
+    [p, r, s, sol]
   );
-  const active = usePipelineStore(
-    selectors.selectActiveSuccessMetrics(
-      problemId ?? "", researchId ?? "", scId ?? "", solId ?? ""
-    )
+  const selectActive = useMemo(
+    () => selectors.selectActiveSuccessMetrics(p, r, s, sol),
+    [p, r, s, sol]
   );
-  const loading = usePipelineStore(
-    selectors.selectLoading(
-      `successMetrics:${uid ?? ""}:${problemId ?? ""}:${researchId ?? ""}:${scId ?? ""}:${solId ?? ""}`
-    )
-  );
+  const selectLoading = useMemo(() => selectors.selectLoading(loadKey), [loadKey]);
+
+  const list = usePipelineStore(selectList);
+  const active = usePipelineStore(selectActive);
+  const loading = usePipelineStore(selectLoading);
 
   return { list, active, loading };
 }

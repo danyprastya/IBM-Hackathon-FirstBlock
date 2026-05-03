@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/contexts/AuthContext";
@@ -23,10 +23,19 @@ export function useProblems() {
     return subscriptions.problems(uid);
   }, [uid]);
 
-  const problems = usePipelineStore(selectors.selectProblems(uid));
-  const folders = usePipelineStore(selectors.selectFolders(uid));
-  const loading = usePipelineStore(selectors.selectLoading(`problems:${uid}`));
-  const error = usePipelineStore(selectors.selectError(`problems:${uid}`));
+  // Memoize selectors so their reference stays stable across renders.
+  // Without this, each render creates a new selector fn → Zustand's
+  // useSyncExternalStore sees a new getServerSnapshot → infinite loop.
+  const selectProblems = useMemo(() => selectors.selectProblems(uid), [uid]);
+  const selectFolders = useMemo(() => selectors.selectFolders(uid), [uid]);
+  const loadingKey = `problems:${uid}`;
+  const selectLoading = useMemo(() => selectors.selectLoading(loadingKey), [loadingKey]);
+  const selectError = useMemo(() => selectors.selectError(loadingKey), [loadingKey]);
+
+  const problems = usePipelineStore(selectProblems);
+  const folders = usePipelineStore(selectFolders);
+  const loading = usePipelineStore(selectLoading);
+  const error = usePipelineStore(selectError);
 
   // Create a new problem (raw dump)
   const createProblem = useCallback(

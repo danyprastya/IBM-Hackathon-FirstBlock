@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { usePipelineStore, subscriptions, selectors } from "@/lib/store";
 
@@ -18,17 +18,19 @@ export function usePrds(
     return subscriptions.prds(uid, problemId, researchId, scId, solId);
   }, [uid, problemId, researchId, scId, solId]);
 
-  const prds = usePipelineStore(
-    selectors.selectPrds(problemId ?? "", researchId ?? "", scId ?? "", solId ?? "")
-  );
-  const active = usePipelineStore(
-    selectors.selectActivePrd(problemId ?? "", researchId ?? "", scId ?? "", solId ?? "")
-  );
-  const loading = usePipelineStore(
-    selectors.selectLoading(
-      `prds:${uid ?? ""}:${problemId ?? ""}:${researchId ?? ""}:${scId ?? ""}:${solId ?? ""}`
-    )
-  );
+  const p = problemId ?? "";
+  const r = researchId ?? "";
+  const s = scId ?? "";
+  const sol = solId ?? "";
+  const loadKey = `prds:${uid ?? ""}:${p}:${r}:${s}:${sol}`;
+
+  const selectPrds = useMemo(() => selectors.selectPrds(p, r, s, sol), [p, r, s, sol]);
+  const selectActive = useMemo(() => selectors.selectActivePrd(p, r, s, sol), [p, r, s, sol]);
+  const selectLoading = useMemo(() => selectors.selectLoading(loadKey), [loadKey]);
+
+  const prds = usePipelineStore(selectPrds);
+  const active = usePipelineStore(selectActive);
+  const loading = usePipelineStore(selectLoading);
 
   return { prds, active, loading };
 }

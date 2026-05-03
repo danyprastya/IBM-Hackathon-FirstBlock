@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { usePipelineStore, subscriptions, selectors } from "@/lib/store";
 
@@ -16,14 +16,18 @@ export function useSolutionCollections(
     return subscriptions.solutionCollections(uid, problemId, researchId);
   }, [uid, problemId, researchId]);
 
-  const collections = usePipelineStore(
-    selectors.selectSolutionCollections(problemId ?? "", researchId ?? "")
+  const p = problemId ?? "";
+  const r = researchId ?? "";
+  const loadKey = `solutionCollections:${uid ?? ""}:${p}:${r}`;
+
+  const selectCollections = useMemo(
+    () => selectors.selectSolutionCollections(p, r),
+    [p, r]
   );
-  const loading = usePipelineStore(
-    selectors.selectLoading(
-      `solutionCollections:${uid ?? ""}:${problemId ?? ""}:${researchId ?? ""}`
-    )
-  );
+  const selectLoading = useMemo(() => selectors.selectLoading(loadKey), [loadKey]);
+
+  const collections = usePipelineStore(selectCollections);
+  const loading = usePipelineStore(selectLoading);
 
   return { collections, loading };
 }
