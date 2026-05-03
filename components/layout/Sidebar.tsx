@@ -56,6 +56,7 @@ interface SidebarProps {
 interface SidebarConfig {
   folderOrder: string[];
   emptyFolders: string[];
+  ideaOrderByFolder: Record<string, string[]>;
 }
 
 // ─── Persist sidebar config to Firestore ─────────────────────────────────────
@@ -68,7 +69,17 @@ async function saveSidebarConfig(uid: string, config: SidebarConfig) {
   }
 }
 
+// Reorder array: move item from fromIdx to toIdx
+function reorder<T>(arr: T[], fromIdx: number, toIdx: number): T[] {
+  const next = [...arr];
+  const [item] = next.splice(fromIdx, 1);
+  next.splice(toIdx, 0, item);
+  return next;
+}
+
 // ─── IdeaLink (sortable + navigable) ─────────────────────────────────────────
+// FIX: listeners on outer div, NO overlay stopPropagation.
+// PointerSensor distance:8 means taps (<8px) → click fires normally.
 
 function IdeaLink({ idea, isActive }: { idea: Problem; isActive: boolean }) {
   const {
@@ -95,17 +106,17 @@ function IdeaLink({ idea, isActive }: { idea: Problem; isActive: boolean }) {
         (idea.rawInput.length > 50 ? "…" : "");
 
   return (
-    <div ref={setNodeRef} style={style} className="relative">
-      {/* Transparent drag handle overlays the row */}
-      <div
-        {...attributes}
-        {...listeners}
-        className="absolute inset-0 z-10 cursor-grab active:cursor-grabbing rounded-md"
-        onClick={(e) => e.stopPropagation()}
-      />
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="touch-none select-none"
+    >
       <Link
         href={href}
-        className={`relative flex items-center gap-1.5 pl-2 pr-2 py-1 rounded-md text-[13px] select-none transition-colors ${
+        draggable={false}
+        className={`flex items-center gap-1.5 pl-2 pr-2 py-1 rounded-md text-[13px] transition-colors ${
           isActive
             ? "bg-accent-soft text-accent-primary font-medium"
             : "text-text-secondary hover:bg-input-bg"
@@ -297,10 +308,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const [activeItem, setActiveItem] = useState<{ type: "idea" | "folder"; id: string } | null>(null);
   const [creatingFolder, setCreatingFolder] = useState(false);
 
-  // folderOrder: full sorted list of known folder names (including empty ones)
-  // emptyFolders: folders with no problems yet (user-created, not from Firestore data)
   const [folderOrder, setFolderOrder] = useState<string[]>([]);
   const [emptyFolders, setEmptyFolders] = useState<string[]>([]);
+  // ideaOrderByFolder: local reorder within a folder { folderName: [id, id, ...] }
+  const [ideaOrderByFolder, setIdeaOrderByFolder] = useState<Record<string, string[]>>({});
+  // optimisticFolderMap: immediate visual move before Firestore responds { ideaId: folderName }
+  const [optimisticFolderMap, setOptimisticFolderMap] = useState<Record<string, string>>({});
   const [configLoaded, setConfigLoaded] = useState(false);
 
   const uid = user?.uid ?? null;
@@ -314,27 +327,29 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     if (cfg) {
       setFolderOrder(cfg.folderOrder ?? []);
       setEmptyFolders(cfg.emptyFolders ?? []);
+      setIdeaOrderByFolder((cfg as SidebarConfig).ideaOrderByFolder ?? {});
     }
     setConfigLoaded(true);
   }, [userData, configLoaded]);
 
-  // ── Persist config whenever it changes (debounced 600ms) ─────────
+  // ── Persist config (debounced 600ms) ─────────────────────────────
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const persistConfig = useCallback(
-    (order: string[], empty: string[]) => {
+    (order: string[], empty: string[], ideaOrder: Record<string, string[]>) => {
       if (!uid) return;
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {
-        saveSidebarConfig(uid, { folderOrder: order, emptyFolders: empty });
+        saveSidebarConfig(uid, { folderOrder: order, emptyFolders: empty, ideaOrderByFolder: ideaOrder });
       }, 600);
     },
     [uid]
   );
 
+  // distance:8 → taps/clicks (<8px movement) are NOT treated as drag starts
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
   // ── Derived folder list ──────────────────────────────────────────
@@ -413,29 +428,57 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     const activeData = active.data.current as { type: string; idea?: Problem; folderName?: string };
     const overData = over.data.current as { type?: string; folderName?: string; idea?: Problem };
 
-    // Idea → folder
+    // ── Idea → folder header: move folder ──────────────────────────
     if (activeData.type === "idea" && overData?.type === "folder") {
       const idea = activeData.idea!;
       const target = overData.folderName!;
-      if (idea.folder !== target) {
-        try { await actions.updateProblem(idea.id, { folder: target }); }
-        catch (err) { console.error("Move idea error:", err); }
+      if ((optimisticFolderMap[idea.id] ?? idea.folder) === target) return;
+      // Optimistic update → instant UI
+      setOptimisticFolderMap((prev) => ({ ...prev, [idea.id]: target }));
+      try {
+        await actions.updateProblem(idea.id, { folder: target });
+      } catch (err) {
+        // Revert
+        setOptimisticFolderMap((prev) => { const n = { ...prev }; delete n[idea.id]; return n; });
+        console.error("Move idea error:", err);
       }
       return;
     }
 
-    // Idea → idea (move to same folder as target)
+    // ── Idea → idea: reorder within folder OR cross-folder move ─────
     if (activeData.type === "idea" && overData?.type === "idea") {
       const idea = activeData.idea!;
-      const target = overData.idea!;
-      if (idea.folder !== target.folder) {
-        try { await actions.updateProblem(idea.id, { folder: target.folder ?? "Drafts" }); }
-        catch (err) { console.error("Move idea error:", err); }
+      const targetIdea = overData.idea!;
+      const ideaEffectiveFolder = optimisticFolderMap[idea.id] ?? idea.folder ?? "Drafts";
+      const targetEffectiveFolder = optimisticFolderMap[targetIdea.id] ?? targetIdea.folder ?? "Drafts";
+
+      if (ideaEffectiveFolder === targetEffectiveFolder) {
+        // ── Same folder: reorder locally ──────────────────────────
+        const folder = ideaEffectiveFolder;
+        const rawIdeas = getIdeasForFolder(folder);
+        const currentOrder = rawIdeas.map((i) => i.id);
+        const fromIdx = currentOrder.indexOf(idea.id);
+        const toIdx = currentOrder.indexOf(targetIdea.id);
+        if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+        const nextOrder = reorder(currentOrder, fromIdx, toIdx);
+        const nextIdeaOrder = { ...ideaOrderByFolder, [folder]: nextOrder };
+        setIdeaOrderByFolder(nextIdeaOrder);
+        persistConfig(folderOrder.length > 0 ? folderOrder : orderedNames, emptyFolders, nextIdeaOrder);
+      } else {
+        // ── Cross-folder: optimistic move ─────────────────────────
+        const target = targetEffectiveFolder;
+        setOptimisticFolderMap((prev) => ({ ...prev, [idea.id]: target }));
+        try {
+          await actions.updateProblem(idea.id, { folder: target });
+        } catch (err) {
+          setOptimisticFolderMap((prev) => { const n = { ...prev }; delete n[idea.id]; return n; });
+          console.error("Move idea error:", err);
+        }
       }
       return;
     }
 
-    // Folder → folder (reorder locally + persist)
+    // ── Folder → folder: reorder folders ───────────────────────────
     if (activeData.type === "folder" && overData?.type === "folder") {
       const from = activeData.folderName!;
       const to = overData.folderName!;
@@ -444,53 +487,64 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       const fromIdx = base.indexOf(from);
       const toIdx = base.indexOf(to);
       if (fromIdx === -1 || toIdx === -1) return;
-      const next = [...base];
-      next.splice(fromIdx, 1);
-      next.splice(toIdx, 0, from);
+      const next = reorder(base, fromIdx, toIdx);
       setFolderOrder(next);
-      persistConfig(next, emptyFolders);
+      persistConfig(next, emptyFolders, ideaOrderByFolder);
     }
   };
 
   // ── Folder CRUD ──────────────────────────────────────────────────
 
+  // ── Helper: get ordered ideas for a folder (local order + optimistic moves) ─
+
+  const getIdeasForFolder = (folderName: string): Problem[] => {
+    const allIdeas = Object.values(firestoreFolders).flat();
+    const folderIdeas = allIdeas.filter((p) => {
+      const effective = optimisticFolderMap[p.id] ?? p.folder ?? "Drafts";
+      return effective === folderName;
+    });
+    const customOrder = ideaOrderByFolder[folderName];
+    if (!customOrder) return folderIdeas;
+    // Sort by custom order, append any new items at end
+    return [
+      ...customOrder.map((id) => folderIdeas.find((p) => p.id === id)).filter(Boolean) as Problem[],
+      ...folderIdeas.filter((p) => !customOrder.includes(p.id)),
+    ];
+  };
+
   const handleCreateFolder = (name: string) => {
-    // Avoid duplicates
-    if (allKnownNames.includes(name)) {
-      setCreatingFolder(false);
-      return;
-    }
+    if (allKnownNames.includes(name)) { setCreatingFolder(false); return; }
     const nextEmpty = [...emptyFolders, name];
     const nextOrder = [...(folderOrder.length > 0 ? folderOrder : orderedNames), name];
     setEmptyFolders(nextEmpty);
     setFolderOrder(nextOrder);
     setExpandedFolders((prev) => new Set([...prev, name]));
-    persistConfig(nextOrder, nextEmpty);
+    persistConfig(nextOrder, nextEmpty, ideaOrderByFolder);
     setCreatingFolder(false);
   };
 
   const handleRenameFolder = async (oldName: string, newName: string) => {
     if (oldName === newName) return;
-    // Move all Firestore problems
     const problems = firestoreFolders[oldName] ?? [];
     await Promise.all(
-      problems.map((p) =>
-        actions.updateProblem(p.id, { folder: newName }).catch(console.error)
-      )
+      problems.map((p) => actions.updateProblem(p.id, { folder: newName }).catch(console.error))
     );
-    // Update emptyFolders if it was empty
     const nextEmpty = emptyFolders.map((f) => (f === oldName ? newName : f));
     const nextOrder = (folderOrder.length > 0 ? folderOrder : orderedNames).map(
       (f) => (f === oldName ? newName : f)
     );
+    const nextIdeaOrder = Object.fromEntries(
+      Object.entries(ideaOrderByFolder).map(([k, v]) => [k === oldName ? newName : k, v])
+    );
     setEmptyFolders(nextEmpty);
     setFolderOrder(nextOrder);
+    setIdeaOrderByFolder(nextIdeaOrder);
     setExpandedFolders((prev) => {
       const next = new Set(prev);
       if (next.has(oldName)) { next.delete(oldName); next.add(newName); }
       return next;
     });
-    persistConfig(nextOrder, nextEmpty);
+    persistConfig(nextOrder, nextEmpty, nextIdeaOrder);
   };
 
   // ── Drag overlays ────────────────────────────────────────────────
@@ -613,7 +667,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 strategy={verticalListSortingStrategy}
               >
                 {filteredNames.map((folderName) => {
-                  const ideas = firestoreFolders[folderName] ?? [];
+                  const ideas = getIdeasForFolder(folderName);
                   const isExpanded = expandedFolders.has(folderName);
 
                   return (
