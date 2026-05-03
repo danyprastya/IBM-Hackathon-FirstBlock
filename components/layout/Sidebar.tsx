@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -38,6 +38,9 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
+import { COLLECTIONS } from "@/lib/firebase/collections";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { useUserData } from "@/hooks/useUserData";
 import { useProblems, type Problem } from "@/hooks/useProblems";
@@ -50,9 +53,23 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
-// ─── Sortable Idea Item ──────────────────────────────────────────────────────
+interface SidebarConfig {
+  folderOrder: string[];
+  emptyFolders: string[];
+}
 
-// Clickable wrapper for navigation (separate from drag handle)
+// ─── Persist sidebar config to Firestore ─────────────────────────────────────
+
+async function saveSidebarConfig(uid: string, config: SidebarConfig) {
+  try {
+    await updateDoc(doc(db, COLLECTIONS.USERS, uid), { sidebarConfig: config });
+  } catch (err) {
+    console.error("[sidebar] save config error:", err);
+  }
+}
+
+// ─── IdeaLink (sortable + navigable) ─────────────────────────────────────────
+
 function IdeaLink({ idea, isActive }: { idea: Problem; isActive: boolean }) {
   const {
     attributes,
@@ -63,7 +80,6 @@ function IdeaLink({ idea, isActive }: { idea: Problem; isActive: boolean }) {
     isDragging,
   } = useSortable({ id: `idea:${idea.id}`, data: { type: "idea", idea } });
 
-  const pathname = usePathname();
   const href = `/workspace/idea/${idea.id}`;
 
   const style = {
@@ -73,11 +89,14 @@ function IdeaLink({ idea, isActive }: { idea: Problem; isActive: boolean }) {
   };
 
   const title =
-    idea.title || idea.rawInput.slice(0, 50) + (idea.rawInput.length > 50 ? "…" : "");
+    idea.title && idea.title.trim()
+      ? idea.title
+      : idea.rawInput.replace(/<[^>]+>/g, " ").trim().slice(0, 50) +
+        (idea.rawInput.length > 50 ? "…" : "");
 
   return (
     <div ref={setNodeRef} style={style} className="relative">
-      {/* Drag handle – grab the entire row but allow click-through to link */}
+      {/* Transparent drag handle overlays the row */}
       <div
         {...attributes}
         {...listeners}
@@ -87,7 +106,7 @@ function IdeaLink({ idea, isActive }: { idea: Problem; isActive: boolean }) {
       <Link
         href={href}
         className={`relative flex items-center gap-1.5 pl-2 pr-2 py-1 rounded-md text-[13px] select-none transition-colors ${
-          pathname === href
+          isActive
             ? "bg-accent-soft text-accent-primary font-medium"
             : "text-text-secondary hover:bg-input-bg"
         }`}
@@ -99,7 +118,7 @@ function IdeaLink({ idea, isActive }: { idea: Problem; isActive: boolean }) {
   );
 }
 
-// ─── Sortable Folder ─────────────────────────────────────────────────────────
+// ─── FolderRow (sortable) ─────────────────────────────────────────────────────
 
 interface FolderRowProps {
   folderName: string;
@@ -108,7 +127,6 @@ interface FolderRowProps {
   isOver: boolean;
   onToggle: () => void;
   onRename: (newName: string) => void;
-  isDragOverlay?: boolean;
 }
 
 function FolderRow({
@@ -118,7 +136,6 @@ function FolderRow({
   isOver,
   onToggle,
   onRename,
-  isDragOverlay,
 }: FolderRowProps) {
   const {
     attributes,
@@ -157,32 +174,26 @@ function FolderRow({
       ref={setNodeRef}
       style={style}
       className={`rounded-md transition-colors ${
-        isOver && !isDragOverlay ? "bg-accent-glow ring-1 ring-accent-primary/30" : ""
+        isOver ? "bg-accent-glow ring-1 ring-accent-primary/30" : ""
       }`}
     >
       <button
         onClick={onToggle}
-        className={`w-full flex items-center gap-1 px-1 py-1 rounded-md text-[13px] transition-colors group hover:bg-input-bg ${
-          isDragOverlay ? "bg-input-bg shadow-md" : ""
-        }`}
+        className="w-full flex items-center gap-1 px-1 py-1 rounded-md text-[13px] transition-colors group hover:bg-input-bg"
         {...attributes}
         {...listeners}
       >
-        {/* Chevron */}
         {isExpanded ? (
           <ChevronDown className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
         ) : (
           <ChevronRight className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
         )}
-
-        {/* Folder icon */}
         {isExpanded ? (
           <FolderOpen className="w-4 h-4 text-text-muted flex-shrink-0" />
         ) : (
           <FolderClosed className="w-4 h-4 text-text-muted flex-shrink-0" />
         )}
 
-        {/* Name / inline editor */}
         {editing ? (
           <input
             ref={inputRef}
@@ -204,7 +215,6 @@ function FolderRow({
           </span>
         )}
 
-        {/* Count + rename */}
         {!editing && (
           <>
             <span className="ml-auto text-[11px] text-text-muted group-hover:opacity-0 transition-opacity">
@@ -225,11 +235,16 @@ function FolderRow({
   );
 }
 
-// ─── New Folder Row ──────────────────────────────────────────────────────────
+// ─── NewFolderInput ───────────────────────────────────────────────────────────
 
-function NewFolderInput({ onConfirm, onCancel }: { onConfirm: (name: string) => void; onCancel: () => void }) {
+function NewFolderInput({
+  onConfirm,
+  onCancel,
+}: {
+  onConfirm: (name: string) => void;
+  onCancel: () => void;
+}) {
   const [value, setValue] = useState("New Folder");
-  const ref = useRef<HTMLInputElement>(null);
 
   const confirm = () => {
     const trimmed = value.trim();
@@ -238,10 +253,9 @@ function NewFolderInput({ onConfirm, onCancel }: { onConfirm: (name: string) => 
   };
 
   return (
-    <div className="flex items-center gap-1.5 px-2 py-1 bg-input-bg rounded-md">
+    <div className="flex items-center gap-1.5 px-2 py-1 bg-input-bg rounded-md mb-0.5">
       <FolderClosed className="w-4 h-4 text-text-muted flex-shrink-0" />
       <input
-        ref={ref}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onBlur={confirm}
@@ -253,34 +267,110 @@ function NewFolderInput({ onConfirm, onCancel }: { onConfirm: (name: string) => 
         autoFocus
         onFocus={(e) => e.target.select()}
       />
-      <button onClick={confirm} className="p-0.5 hover:bg-gray-200 rounded"><Check className="w-3 h-3 text-success" /></button>
-      <button onClick={onCancel} className="p-0.5 hover:bg-gray-200 rounded"><X className="w-3 h-3 text-text-muted" /></button>
+      <button
+        onMouseDown={(e) => { e.preventDefault(); confirm(); }}
+        className="p-0.5 hover:bg-gray-200 rounded"
+      >
+        <Check className="w-3 h-3 text-success" />
+      </button>
+      <button
+        onMouseDown={(e) => { e.preventDefault(); onCancel(); }}
+        className="p-0.5 hover:bg-gray-200 rounded"
+      >
+        <X className="w-3 h-3 text-text-muted" />
+      </button>
     </div>
   );
 }
 
-// ─── Main Sidebar ────────────────────────────────────────────────────────────
+// ─── Main Sidebar ─────────────────────────────────────────────────────────────
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const { userData } = useUserData();
-  const { folders, loading: problemsLoading } = useProblems();
+  const { folders: firestoreFolders, loading: problemsLoading } = useProblems();
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(["Drafts"]));
   const [searchQuery, setSearchQuery] = useState("");
-  const [folderOrder, setFolderOrder] = useState<string[]>([]);
   const [overFolder, setOverFolder] = useState<string | null>(null);
   const [activeItem, setActiveItem] = useState<{ type: "idea" | "folder"; id: string } | null>(null);
   const [creatingFolder, setCreatingFolder] = useState(false);
-  // Local folder-order override (persists in component memory only)
-  const [localFolderOrder, setLocalFolderOrder] = useState<string[]>([]);
 
+  // folderOrder: full sorted list of known folder names (including empty ones)
+  // emptyFolders: folders with no problems yet (user-created, not from Firestore data)
+  const [folderOrder, setFolderOrder] = useState<string[]>([]);
+  const [emptyFolders, setEmptyFolders] = useState<string[]>([]);
+  const [configLoaded, setConfigLoaded] = useState(false);
+
+  const uid = user?.uid ?? null;
   const displayName = userData?.name || user?.displayName || "User";
+
+  // ── Load persisted config on mount ──────────────────────────────
+
+  useEffect(() => {
+    if (!userData || configLoaded) return;
+    const cfg = userData.sidebarConfig;
+    if (cfg) {
+      setFolderOrder(cfg.folderOrder ?? []);
+      setEmptyFolders(cfg.emptyFolders ?? []);
+    }
+    setConfigLoaded(true);
+  }, [userData, configLoaded]);
+
+  // ── Persist config whenever it changes (debounced 600ms) ─────────
+
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const persistConfig = useCallback(
+    (order: string[], empty: string[]) => {
+      if (!uid) return;
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => {
+        saveSidebarConfig(uid, { folderOrder: order, emptyFolders: empty });
+      }, 600);
+    },
+    [uid]
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
+
+  // ── Derived folder list ──────────────────────────────────────────
+
+  // All folder names known from Firestore data
+  const firestoreNames = Object.keys(firestoreFolders).sort((a, b) =>
+    a === "Drafts" ? -1 : b === "Drafts" ? 1 : a.localeCompare(b)
+  );
+
+  // All known folder names = Firestore folders + empty user-created folders
+  const allKnownNames = Array.from(
+    new Set([...firestoreNames, ...emptyFolders])
+  );
+
+  // Apply user-defined ordering; new names append at end
+  const orderedNames =
+    folderOrder.length > 0
+      ? [
+          ...folderOrder.filter((f) => allKnownNames.includes(f)),
+          ...allKnownNames.filter((f) => !folderOrder.includes(f)),
+        ]
+      : allKnownNames;
+
+  // Filter by search (empty folders always show if not searching)
+  const filteredNames = searchQuery.trim()
+    ? orderedNames.filter((name) => {
+        const ideas = firestoreFolders[name] ?? [];
+        return ideas.some(
+          (p) =>
+            p.rawInput.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.title.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      })
+    : orderedNames;
+
+  // ── Toggle ───────────────────────────────────────────────────────
 
   const toggleFolder = (name: string) => {
     setExpandedFolders((prev) => {
@@ -291,6 +381,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     });
   };
 
+  // ── Sign out ─────────────────────────────────────────────────────
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -300,52 +392,17 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     }
   };
 
-  // ── Derived folder data ──────────────────────────────────────────
-
-  const filteredFolders: Record<string, Problem[]> = searchQuery.trim()
-    ? Object.fromEntries(
-        Object.entries(folders)
-          .map(([name, problems]) => [
-            name,
-            problems.filter(
-              (p) =>
-                p.rawInput.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                p.title.toLowerCase().includes(searchQuery.toLowerCase())
-            ),
-          ])
-          .filter(([, problems]) => (problems as Problem[]).length > 0)
-      )
-    : folders;
-
-  // Merge server folder names with local order + locally created folders
-  const serverNames = Object.keys(filteredFolders).sort((a, b) =>
-    a === "Drafts" ? -1 : b === "Drafts" ? 1 : a.localeCompare(b)
-  );
-
-  // Apply local ordering; append any server names not yet in local order
-  const allKnownFolders = localFolderOrder.length > 0
-    ? [
-        ...localFolderOrder.filter((f) => serverNames.includes(f) || (filteredFolders[f] !== undefined)),
-        ...serverNames.filter((f) => !localFolderOrder.includes(f)),
-      ]
-    : serverNames;
-
-  // ── DnD handlers ────────────────────────────────────────────────
+  // ── DnD ─────────────────────────────────────────────────────────
 
   const handleDragStart = ({ active }: DragStartEvent) => {
     const data = active.data.current as { type: "idea" | "folder" };
     setActiveItem({ type: data.type, id: active.id as string });
-    if (data.type === "idea") {
-      // Initialise local order if not yet set
-      if (localFolderOrder.length === 0) setLocalFolderOrder(allKnownFolders);
-    }
   };
 
   const handleDragOver = ({ over }: DragOverEvent) => {
     if (!over) { setOverFolder(null); return; }
-    const overData = over.data.current as { type?: string; folderName?: string } | undefined;
-    if (overData?.type === "folder") setOverFolder(overData.folderName ?? null);
-    else setOverFolder(null);
+    const d = over.data.current as { type?: string; folderName?: string } | undefined;
+    setOverFolder(d?.type === "folder" ? (d.folderName ?? null) : null);
   };
 
   const handleDragEnd = async ({ active, over }: DragEndEvent) => {
@@ -356,95 +413,103 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     const activeData = active.data.current as { type: string; idea?: Problem; folderName?: string };
     const overData = over.data.current as { type?: string; folderName?: string; idea?: Problem };
 
-    // ── Idea dropped on a folder → move to that folder ──────────
+    // Idea → folder
     if (activeData.type === "idea" && overData?.type === "folder") {
       const idea = activeData.idea!;
-      const targetFolder = overData.folderName!;
-      if (idea.folder !== targetFolder) {
-        try {
-          await actions.updateProblem(idea.id, { folder: targetFolder });
-        } catch (err) {
-          console.error("Move folder error:", err);
-        }
+      const target = overData.folderName!;
+      if (idea.folder !== target) {
+        try { await actions.updateProblem(idea.id, { folder: target }); }
+        catch (err) { console.error("Move idea error:", err); }
       }
       return;
     }
 
-    // ── Idea dropped on another idea → move to its parent folder ─
+    // Idea → idea (move to same folder as target)
     if (activeData.type === "idea" && overData?.type === "idea") {
       const idea = activeData.idea!;
-      const targetIdea = overData.idea!;
-      if (idea.folder !== targetIdea.folder) {
-        try {
-          await actions.updateProblem(idea.id, { folder: targetIdea.folder ?? "Drafts" });
-        } catch (err) {
-          console.error("Move folder error:", err);
-        }
+      const target = overData.idea!;
+      if (idea.folder !== target.folder) {
+        try { await actions.updateProblem(idea.id, { folder: target.folder ?? "Drafts" }); }
+        catch (err) { console.error("Move idea error:", err); }
       }
       return;
     }
 
-    // ── Folder dragged → reorder locally ─────────────────────────
+    // Folder → folder (reorder locally + persist)
     if (activeData.type === "folder" && overData?.type === "folder") {
       const from = activeData.folderName!;
       const to = overData.folderName!;
       if (from === to) return;
-      const current = localFolderOrder.length > 0 ? localFolderOrder : allKnownFolders;
-      const fromIdx = current.indexOf(from);
-      const toIdx = current.indexOf(to);
+      const base = folderOrder.length > 0 ? folderOrder : orderedNames;
+      const fromIdx = base.indexOf(from);
+      const toIdx = base.indexOf(to);
       if (fromIdx === -1 || toIdx === -1) return;
-      const next = [...current];
+      const next = [...base];
       next.splice(fromIdx, 1);
       next.splice(toIdx, 0, from);
-      setLocalFolderOrder(next);
+      setFolderOrder(next);
+      persistConfig(next, emptyFolders);
     }
   };
 
-  // ── Folder actions ───────────────────────────────────────────────
+  // ── Folder CRUD ──────────────────────────────────────────────────
 
   const handleCreateFolder = (name: string) => {
-    // Add to local order (no Firestore doc needed — folders are derived from problems)
-    setLocalFolderOrder((prev) => {
-      const base = prev.length > 0 ? prev : allKnownFolders;
-      return base.includes(name) ? base : [...base, name];
-    });
+    // Avoid duplicates
+    if (allKnownNames.includes(name)) {
+      setCreatingFolder(false);
+      return;
+    }
+    const nextEmpty = [...emptyFolders, name];
+    const nextOrder = [...(folderOrder.length > 0 ? folderOrder : orderedNames), name];
+    setEmptyFolders(nextEmpty);
+    setFolderOrder(nextOrder);
     setExpandedFolders((prev) => new Set([...prev, name]));
+    persistConfig(nextOrder, nextEmpty);
     setCreatingFolder(false);
   };
 
   const handleRenameFolder = async (oldName: string, newName: string) => {
     if (oldName === newName) return;
-    const problemsInFolder = folders[oldName] ?? [];
-    // Move all problems in this folder to the new name
+    // Move all Firestore problems
+    const problems = firestoreFolders[oldName] ?? [];
     await Promise.all(
-      problemsInFolder.map((p) =>
+      problems.map((p) =>
         actions.updateProblem(p.id, { folder: newName }).catch(console.error)
       )
     );
-    // Update local order
-    setLocalFolderOrder((prev) =>
-      (prev.length > 0 ? prev : allKnownFolders).map((f) => (f === oldName ? newName : f))
+    // Update emptyFolders if it was empty
+    const nextEmpty = emptyFolders.map((f) => (f === oldName ? newName : f));
+    const nextOrder = (folderOrder.length > 0 ? folderOrder : orderedNames).map(
+      (f) => (f === oldName ? newName : f)
     );
+    setEmptyFolders(nextEmpty);
+    setFolderOrder(nextOrder);
     setExpandedFolders((prev) => {
       const next = new Set(prev);
       if (next.has(oldName)) { next.delete(oldName); next.add(newName); }
       return next;
     });
+    persistConfig(nextOrder, nextEmpty);
   };
 
-  // ── Overlay items ────────────────────────────────────────────────
+  // ── Drag overlays ────────────────────────────────────────────────
 
   const getActiveIdea = (): Problem | null => {
     if (!activeItem || activeItem.type !== "idea") return null;
-    const ideaId = activeItem.id.replace("idea:", "");
-    for (const probs of Object.values(folders)) {
-      const found = probs.find((p) => p.id === ideaId);
+    const id = activeItem.id.replace("idea:", "");
+    for (const probs of Object.values(firestoreFolders)) {
+      const found = probs.find((p) => p.id === id);
       if (found) return found;
     }
     return null;
   };
 
-  // ── Collapsed state ──────────────────────────────────────────────
+  const activeFolderName =
+    activeItem?.type === "folder" ? activeItem.id.replace("folder:", "") : null;
+  const activeIdea = getActiveIdea();
+
+  // ── Collapsed ────────────────────────────────────────────────────
 
   if (collapsed) {
     return (
@@ -463,11 +528,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   }
 
   // ── Full sidebar ─────────────────────────────────────────────────
-
-  const activeIdea = getActiveIdea();
-  const activeFolderName = activeItem?.type === "folder"
-    ? activeItem.id.replace("folder:", "")
-    : null;
 
   return (
     <aside className="hidden md:flex w-64 h-screen bg-white border-r border-gray-200 flex-col">
@@ -516,14 +576,13 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </button>
       </div>
 
-      {/* Folder Tree */}
+      {/* Tree */}
       <nav className="flex-1 overflow-y-auto px-2">
-        {/* Section label */}
         <p className="px-2 py-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider">
           Projects
         </p>
 
-        {problemsLoading ? (
+        {problemsLoading && !configLoaded ? (
           <div className="flex items-center gap-2 px-2 py-4 text-text-muted">
             <Loader2 className="w-4 h-4 animate-spin" />
             <span className="text-xs">Loading...</span>
@@ -536,28 +595,25 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
           >
-            {/* New folder input */}
             {creatingFolder && (
-              <div className="mb-1">
-                <NewFolderInput
-                  onConfirm={handleCreateFolder}
-                  onCancel={() => setCreatingFolder(false)}
-                />
-              </div>
+              <NewFolderInput
+                onConfirm={handleCreateFolder}
+                onCancel={() => setCreatingFolder(false)}
+              />
             )}
 
-            {allKnownFolders.length === 0 && !creatingFolder ? (
+            {filteredNames.length === 0 && !creatingFolder ? (
               <div className="px-2 py-4 text-center">
                 <p className="text-xs text-text-muted">No ideas yet.</p>
-                <p className="text-xs text-text-muted mt-1">Tap "New Idea" to start.</p>
+                <p className="text-xs text-text-muted mt-1">Tap &quot;New Idea&quot; to start.</p>
               </div>
             ) : (
               <SortableContext
-                items={allKnownFolders.map((f) => `folder:${f}`)}
+                items={filteredNames.map((f) => `folder:${f}`)}
                 strategy={verticalListSortingStrategy}
               >
-                {allKnownFolders.map((folderName) => {
-                  const ideas = filteredFolders[folderName] ?? [];
+                {filteredNames.map((folderName) => {
+                  const ideas = firestoreFolders[folderName] ?? [];
                   const isExpanded = expandedFolders.has(folderName);
 
                   return (
@@ -571,22 +627,23 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                         onRename={(newName) => handleRenameFolder(folderName, newName)}
                       />
 
-                      {/* Children with VS Code-style indent guide */}
                       {isExpanded && (
                         <div className="relative ml-4">
-                          {/* Vertical indentation line */}
+                          {/* VS Code indent guide */}
                           <div
-                            className="absolute left-0 top-0 bottom-0 w-px bg-gray-200 hover:bg-accent-primary/50 transition-colors"
+                            className="absolute top-0 bottom-0 w-px bg-gray-200 hover:bg-accent-primary/40 transition-colors cursor-pointer"
                             style={{ left: "7px" }}
+                            onClick={() => toggleFolder(folderName)}
                           />
-
                           <SortableContext
                             items={ideas.map((i) => `idea:${i.id}`)}
                             strategy={verticalListSortingStrategy}
                           >
                             <div className="ml-5 space-y-0.5 py-0.5">
                               {ideas.length === 0 ? (
-                                <p className="text-[12px] text-text-muted pl-2 py-1 italic">Empty folder</p>
+                                <p className="text-[12px] text-text-muted pl-2 py-1 italic">
+                                  Empty — drag ideas here
+                                </p>
                               ) : (
                                 ideas.map((idea) => (
                                   <IdeaLink
@@ -606,10 +663,9 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               </SortableContext>
             )}
 
-            {/* Drag overlays */}
             <DragOverlay dropAnimation={{ duration: 180, easing: "ease" }}>
               {activeIdea && (
-                <div className="flex items-center gap-1.5 pl-2 pr-2 py-1 rounded-md text-[13px] bg-white shadow-lg border border-accent-primary/30 text-accent-primary font-medium w-48">
+                <div className="flex items-center gap-1.5 pl-2 pr-2 py-1 rounded-md text-[13px] bg-white shadow-lg border border-accent-primary/30 text-accent-primary font-medium w-52">
                   <FileText className="w-3.5 h-3.5 flex-shrink-0" />
                   <span className="truncate">
                     {activeIdea.title || activeIdea.rawInput.slice(0, 40)}
@@ -617,7 +673,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 </div>
               )}
               {activeFolderName && (
-                <div className="flex items-center gap-1 px-1 py-1 rounded-md text-[13px] bg-white shadow-lg border border-gray-200 text-text-primary font-medium w-48">
+                <div className="flex items-center gap-1 px-1 py-1 rounded-md text-[13px] bg-white shadow-lg border border-gray-200 text-text-primary font-medium w-52">
                   <ChevronDown className="w-3.5 h-3.5 text-text-muted" />
                   <FolderOpen className="w-4 h-4 text-text-muted" />
                   <span className="truncate">{activeFolderName}</span>

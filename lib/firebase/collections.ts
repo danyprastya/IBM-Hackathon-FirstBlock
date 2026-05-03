@@ -183,6 +183,11 @@ export interface UserDocument {
     count: number;
     windowStart: Date;
   };
+  /** Sidebar UI state — folder ordering + user-created empty folders */
+  sidebarConfig?: {
+    folderOrder: string[];
+    emptyFolders: string[];
+  };
   createdAt: Date;
 }
 

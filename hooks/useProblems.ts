@@ -49,13 +49,22 @@ export function useProblems() {
     async (rawInput: string, folder?: string, htmlContent?: string): Promise<string | null> => {
       if (!uid) return null;
 
+      // Derive a short title from the first non-empty sentence / line (max 60 chars)
+      const firstLine = rawInput
+        .replace(/<[^>]+>/g, " ")  // strip any residual HTML
+        .split(/[\n.!?]/)
+        .map((s) => s.trim())
+        .find((s) => s.length > 0) ?? "";
+      const autoTitle = firstLine.length > 60 ? firstLine.slice(0, 60) + "…" : firstLine;
+
       try {
         const docRef = await addDoc(
           collection(db, "users", uid, "problems"),
           {
             rawInput,
+            title: autoTitle,
             htmlContent: htmlContent || "",
-            cleanedStatement: "", // AI will clean this later
+            cleanedStatement: "",
             inputType: "text" as const,
             folder: folder || "Drafts",
             createdAt: serverTimestamp(),
