@@ -62,6 +62,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/workspace", request.url));
   }
 
+  // Landing page: if authenticated, send to workspace (the workspace
+  // guard above will further bounce to /onboarding if not completed).
+  if (pathname === "/" && authToken) {
+    return NextResponse.redirect(new URL("/workspace", request.url));
+  }
+
   return NextResponse.next();
 }
 

@@ -40,8 +40,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const token = await user.getIdToken();
         document.cookie = `__session=${token}; path=/; max-age=3600; samesite=strict`;
       } else {
-        // Clear cookie on sign out
+        // Clear cookies on sign out
         document.cookie = "__session=; path=/; max-age=0";
+        document.cookie = "__onboarding_done=; path=/; max-age=0";
       }
       
       setLoading(false);

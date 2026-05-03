@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
+import { COLLECTIONS } from "@/lib/firebase/collections";
 import {
   SKILLS_OPTIONS,
   INTERESTS_OPTIONS,
@@ -27,10 +30,38 @@ const TOTAL_STEPS = 5;
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      setChecking(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, COLLECTIONS.USERS, user.uid));
+        if (cancelled) return;
+        if (snap.exists() && snap.data().onboardingCompleted) {
+          document.cookie =
+            "__onboarding_done=true; path=/; max-age=31536000; samesite=strict";
+          router.replace("/workspace");
+          return;
+        }
+        setChecking(false);
+      } catch {
+        if (!cancelled) setChecking(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, authLoading, router]);
 
   const [form, setForm] = useState<OnboardingData>({
     location: "",
@@ -77,6 +108,14 @@ export default function OnboardingPage() {
       setLoading(false);
     }
   };
+
+  if (authLoading || checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <Loader2 className="size-6 animate-spin text-accent-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-white">

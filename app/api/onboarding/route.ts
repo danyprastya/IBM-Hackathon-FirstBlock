@@ -43,10 +43,16 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: "Onboarding completed successfully",
     });
+    response.cookies.set("__onboarding_done", "true", {
+      path: "/",
+      sameSite: "strict",
+      maxAge: 60 * 60 * 24 * 365,
+    });
+    return response;
   } catch (error) {
     console.error("Onboarding error:", error);
     return NextResponse.json(
