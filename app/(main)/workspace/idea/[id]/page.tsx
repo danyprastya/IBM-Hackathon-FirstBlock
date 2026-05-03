@@ -138,13 +138,21 @@ function MobileIdeaDocument({ ideaId }: { ideaId: string }) {
   const [triggeringResearch, setTriggeringResearch] = useState(false);
 
   const handleResearch = async () => {
+    if (!problem) return;
     setTriggeringResearch(true);
     try {
-      await fetch("/api/agents/problems", {
+      const res = await fetch("/api/research/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ problemId: ideaId }),
+        body: JSON.stringify({
+          problemId: ideaId,
+          problemStatement: problem.cleanedStatement || problem.rawInput,
+        }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error("Research start failed:", res.status, data);
+      }
     } catch (err) {
       console.error("Research trigger error:", err);
     }
@@ -239,13 +247,21 @@ function DesktopIdeaDocument({ ideaId }: { ideaId: string }) {
   const [triggeringResearch, setTriggeringResearch] = useState(false);
 
   const handleResearch = async () => {
+    if (!problem) return;
     setTriggeringResearch(true);
     try {
-      await fetch("/api/agents/problems", {
+      const res = await fetch("/api/research/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ problemId: ideaId }),
+        body: JSON.stringify({
+          problemId: ideaId,
+          problemStatement: problem.cleanedStatement || problem.rawInput,
+        }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error("Research start failed:", res.status, data);
+      }
     } catch (err) {
       console.error("Research trigger error:", err);
     }
