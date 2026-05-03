@@ -6,6 +6,13 @@ export { AgentExecutor, setAIProvider, setSearchProvider } from "./executor";
 export { AGENT_PROMPTS, UPSTREAM_CONTEXT_TEMPLATE } from "./prompts";
 export { StubSearchProvider } from "./tools";
 export { WatsonxProvider } from "./providers/watsonx";
+export {
+  parseProblemBrief,
+  parseSolutionBrief,
+  parseSolutionDirections,
+  parseScope,
+  parseMetrics,
+} from "./parsers";
 
 export type {
   AgentType,
