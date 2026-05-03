@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Sparkles, Loader2, Download } from "lucide-react";
 import { WorkspaceLayout } from "@/components/layout/WorkspaceLayout";
 import { useProblems } from "@/hooks/useProblems";
@@ -23,9 +23,10 @@ function stripHtml(html: string): string {
 
 function MobileNewIdea() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { createProblem } = useProblems();
   const [ideaHtml, setIdeaHtml] = useState("");
-  const [ideaTitle, setIdeaTitle] = useState("");
+  const [ideaTitle, setIdeaTitle] = useState(searchParams.get("title") || "");
   const [saving, setSaving] = useState(false);
   const [researching, setResearching] = useState(false);
 
@@ -132,9 +133,10 @@ function MobileNewIdea() {
 
 function DesktopNewIdea() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { createProblem } = useProblems();
   const [ideaHtml, setIdeaHtml] = useState("");
-  const [ideaTitle, setIdeaTitle] = useState("");
+  const [ideaTitle, setIdeaTitle] = useState(searchParams.get("title") || "");
   const [saving, setSaving] = useState(false);
   const [researching, setResearching] = useState(false);
 
@@ -246,7 +248,11 @@ function DesktopNewIdea() {
 
 export default function NewIdeaPage() {
   return (
-    <>
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-accent-primary" />
+      </div>
+    }>
       {/* Mobile only */}
       <div className="md:hidden">
         <MobileNewIdea />
@@ -257,7 +263,7 @@ export default function NewIdeaPage() {
           <DesktopNewIdea />
         </WorkspaceLayout>
       </div>
-    </>
+    </Suspense>
   );
 }
 

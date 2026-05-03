@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ChevronRight,
   ChevronDown,
@@ -21,6 +21,13 @@ import {
   Check,
   X,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   DndContext,
   closestCenter,
@@ -390,6 +397,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const [optimisticFolderMap, setOptimisticFolderMap] = useState<Record<string, string>>({});
   const [configLoaded, setConfigLoaded] = useState(false);
 
+  // New Idea Dialog
+  const [showNewIdeaDialog, setShowNewIdeaDialog] = useState(false);
+  const [newIdeaTitle, setNewIdeaTitle] = useState("");
+  const router = useRouter();
+
   const uid = user?.uid ?? null;
   const displayName = userData?.name || user?.displayName || "User";
 
@@ -688,13 +700,13 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* New Idea + New Folder */}
       <div className="px-3 pb-3 flex gap-2">
-        <Link
-          href="/workspace/new"
+        <button
+          onClick={() => setShowNewIdeaDialog(true)}
           className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-accent-primary text-white text-sm font-medium hover:bg-accent-hover transition-colors"
         >
           <Plus className="w-4 h-4" />
           New Idea
-        </Link>
+        </button>
         <button
           onClick={() => setCreatingFolder(true)}
           title="New Folder"
@@ -836,6 +848,49 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </button>
         </div>
       </div>
+
+      <Dialog open={showNewIdeaDialog} onOpenChange={setShowNewIdeaDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Name Your Project</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <input
+              type="text"
+              value={newIdeaTitle}
+              onChange={(e) => setNewIdeaTitle(e.target.value)}
+              placeholder="e.g. AI Content Generator"
+              className="w-full bg-input-bg text-text-heading px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-accent-primary transition-colors"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setShowNewIdeaDialog(false);
+                  router.push(`/workspace/new?title=${encodeURIComponent(newIdeaTitle.trim())}`);
+                  setNewIdeaTitle("");
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <button
+              onClick={() => setShowNewIdeaDialog(false)}
+              className="px-4 py-2 text-sm font-medium text-text-muted hover:text-text-primary transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                setShowNewIdeaDialog(false);
+                router.push(`/workspace/new?title=${encodeURIComponent(newIdeaTitle.trim())}`);
+                setNewIdeaTitle("");
+              }}
+              className="px-4 py-2 text-sm font-medium bg-accent-primary text-white rounded-lg hover:bg-accent-hover transition-colors"
+            >
+              Start Board
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 }
