@@ -57,47 +57,23 @@ export interface AgentResult {
   };
 }
 
-// ─── Tool Interfaces ──────────────────────────────────────────────
-// Stubs for search tools — teammate fills in real implementations
+// ─── Tool Definitions ─────────────────────────────────────────────
+// One ToolDefinition per callable tool. Sent to Watsonx as the `tools`
+// parameter; the model emits tool_calls, the executor dispatches by name.
 
-export interface SearchResult {
-  title: string;
-  url: string;
-  snippet: string;
-}
-
-export interface ToolCallResult {
-  toolName: string;
-  results: SearchResult[];
-  query: string;
-}
-
-/**
- * Interface for search tools used by research agents.
- * Teammate implements real versions — these are the contracts.
- */
-export interface SearchToolProvider {
-  /**
-   * Quick keyword search against live web.
-   * Best for: news, market data, funding, competitor names.
-   */
-  webSearch(query: string): Promise<SearchResult[]>;
-
-  /**
-   * Deep structured research on a topic.
-   * Best for: industry analysis, competitive landscapes, tech complexity.
-   */
-  research(query: string): Promise<SearchResult[]>;
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  /** JSON schema for the function's arguments. */
+  parameters: object;
+  /** Run the tool. Args are the parsed JSON the model emitted. Return string content for the tool message. */
+  execute: (args: Record<string, unknown>) => Promise<string>;
 }
 
 // ─── AI Provider Interface ────────────────────────────────────────
-// Abstracts LLM call — supports both Watsonx REST and AI SDK
 
 export interface AIProvider {
-  /**
-   * Generate text from messages + system prompt.
-   * No tools — pure text generation.
-   */
+  /** Pure text generation — no tools. */
   generateText(
     systemPrompt: string,
     messages: Array<{ role: "user" | "assistant" | "system"; content: string }>,
@@ -105,15 +81,15 @@ export interface AIProvider {
   ): Promise<string>;
 
   /**
-   * Generate text with tool access.
-   * Used by research agents that need webSearch/research tools.
-   * Returns final text after all tool calls resolved.
+   * Tool-enabled generation. Real round-trip: model emits tool_calls,
+   * the provider dispatches via the registry, feeds results back as
+   * role:"tool" messages, and loops until the model stops or maxSteps.
    */
   generateWithTools(
     systemPrompt: string,
     messages: Array<{ role: "user" | "assistant" | "system"; content: string }>,
-    tools: SearchToolProvider,
-    options?: { maxTokens?: number; temperature?: number }
+    tools: ToolDefinition[],
+    options?: { maxTokens?: number; temperature?: number; maxSteps?: number }
   ): Promise<string>;
 }
 

@@ -1,46 +1,100 @@
-// Watsonx AI provider — implements AIProvider interface
-// Uses existing Watsonx REST client for text generation
-// Tool-enabled generation simulates tool calls via prompt injection
+// SERVER ONLY — Watsonx AI provider implementing AIProvider.
+// generateText: single REST call.
+// generateWithTools: real tool-calling loop using Watsonx native function calling.
+//   The model emits tool_calls, we dispatch via the registry, feed results back
+//   as role:"tool" messages, and loop until the model stops or maxSteps.
 
-import type { AIProvider, SearchToolProvider } from "../types";
+import type { AIProvider, ToolDefinition } from "../types";
 
-interface WatsonxResponse {
-  choices?: Array<{
-    message: {
-      role: string;
+const DEFAULT_MODEL_ID = "ibm/granite-4-h-small";
+const DEFAULT_MAX_STEPS = 20;
+
+type ChatMessage =
+  | { role: "system" | "user"; content: string }
+  | {
+      role: "assistant";
       content: string;
-    };
-  }>;
-  error?: {
-    message: string;
+      tool_calls?: Array<{
+        id: string;
+        type: "function";
+        function: { name: string; arguments: string };
+      }>;
+    }
+  | { role: "tool"; tool_call_id: string; content: string };
+
+interface WatsonxChoice {
+  message: {
+    role: "assistant";
+    content: string;
+    tool_calls?: Array<{
+      id: string;
+      type: "function";
+      function: { name: string; arguments: string };
+    }>;
   };
+  finish_reason?: string;
 }
 
-/**
- * Watsonx REST API provider.
- * For pure text generation — calls Watsonx directly.
- * For tool-enabled generation — runs search tools first, injects results into prompt.
- *
- * When AI SDK provider is ready, swap via setAIProvider() in executor.ts
- */
+interface WatsonxResponse {
+  choices?: WatsonxChoice[];
+  error?: { message: string };
+}
+
 export class WatsonxProvider implements AIProvider {
+  private cachedToken?: { value: string; expiresAt: number };
+
   private async getIAMToken(): Promise<string> {
+    // Token TTL is ~1 hr; cache it modestly to avoid hammering IAM on each call.
+    const now = Date.now();
+    if (this.cachedToken && this.cachedToken.expiresAt > now + 60_000) {
+      return this.cachedToken.value;
+    }
+
     const res = await fetch("https://iam.cloud.ibm.com/identity/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: `grant_type=urn:ibm:params:oauth:grant-type:apikey&apikey=${process.env.WATSONX_API_KEY}`,
     });
-
-    if (!res.ok) throw new Error("Failed to get IAM token");
-    const { access_token } = await res.json();
+    if (!res.ok) throw new Error(`Failed to get IAM token: ${res.status}`);
+    const { access_token, expires_in } = (await res.json()) as {
+      access_token: string;
+      expires_in: number;
+    };
+    this.cachedToken = {
+      value: access_token,
+      expiresAt: now + expires_in * 1000,
+    };
     return access_token;
   }
 
+  private modelId(): string {
+    return process.env.WATSONX_MODEL_ID || DEFAULT_MODEL_ID;
+  }
+
   private async callWatsonxAPI(
-    messages: Array<{ role: string; content: string }>,
-    options?: { maxTokens?: number; temperature?: number }
-  ): Promise<string> {
+    messages: ChatMessage[],
+    options: {
+      maxTokens?: number;
+      temperature?: number;
+      tools?: Array<{
+        type: "function";
+        function: { name: string; description: string; parameters: object };
+      }>;
+    }
+  ): Promise<WatsonxChoice> {
     const token = await this.getIAMToken();
+
+    const body: Record<string, unknown> = {
+      model_id: this.modelId(),
+      project_id: process.env.WATSONX_PROJECT_ID,
+      messages,
+      max_tokens: options.maxTokens ?? 1024,
+      temperature: options.temperature ?? 0.7,
+    };
+    if (options.tools?.length) {
+      body.tools = options.tools;
+      body.tool_choice_option = "auto";
+    }
 
     const res = await fetch(
       `${process.env.WATSONX_API_URL}/ml/v1/text/chat?version=2024-05-31`,
@@ -50,15 +104,7 @@ export class WatsonxProvider implements AIProvider {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          model_id: "ibm/granite-3-8b-instruct",
-          project_id: process.env.WATSONX_PROJECT_ID,
-          messages,
-          parameters: {
-            max_new_tokens: options?.maxTokens ?? 1024,
-            temperature: options?.temperature ?? 0.7,
-          },
-        }),
+        body: JSON.stringify(body),
       }
     );
 
@@ -68,110 +114,118 @@ export class WatsonxProvider implements AIProvider {
     }
 
     const data: WatsonxResponse = await res.json();
-
     if (data.error) throw new Error(data.error.message);
     if (!data.choices?.length) throw new Error("No response from Watsonx");
 
-    return data.choices[0].message.content;
+    return data.choices[0];
   }
 
   async generateText(
     systemPrompt: string,
     messages: Array<{ role: "user" | "assistant" | "system"; content: string }>,
-    options?: { maxTokens?: number; temperature?: number }
+    options: { maxTokens?: number; temperature?: number } = {}
   ): Promise<string> {
-    const allMessages = [
+    const all: ChatMessage[] = [
       { role: "system", content: systemPrompt },
       ...messages,
     ];
-
-    return this.callWatsonxAPI(allMessages, options);
+    const choice = await this.callWatsonxAPI(all, options);
+    return choice.message.content ?? "";
   }
 
   async generateWithTools(
     systemPrompt: string,
     messages: Array<{ role: "user" | "assistant" | "system"; content: string }>,
-    tools: SearchToolProvider,
-    options?: { maxTokens?: number; temperature?: number }
+    tools: ToolDefinition[],
+    options: { maxTokens?: number; temperature?: number; maxSteps?: number } = {}
   ): Promise<string> {
-    // Watsonx Granite doesn't natively support tool calling the way
-    // AI SDK does. So we pre-run the search tools and inject results
-    // into the context as additional information.
-    //
-    // When AI SDK provider is ready, it will handle tool calling natively
-    // via generateWithTools — this is just a compatibility shim.
+    const maxSteps = options.maxSteps ?? DEFAULT_MAX_STEPS;
+    const watsonxTools = tools.map((t) => ({
+      type: "function" as const,
+      function: {
+        name: t.name,
+        description: t.description,
+        parameters: t.parameters,
+      },
+    }));
 
-    // Extract search queries from the user message content
-    const userContent = messages.map((m) => m.content).join(" ");
-    const queries = this.extractSearchQueries(userContent);
+    const conversation: ChatMessage[] = [
+      { role: "system", content: systemPrompt },
+      ...messages,
+    ];
 
-    // Run searches in parallel
-    const searchResults = await Promise.all(
-      queries.map(async (query) => {
-        const [webResults, researchResults] = await Promise.all([
-          tools.webSearch(query),
-          tools.research(query),
-        ]);
-        return {
-          query,
-          webResults,
-          researchResults,
-        };
-      })
-    );
+    let lastAssistantText = "";
 
-    // Format search results as context
-    const searchContext = searchResults
-      .map((sr) => {
-        const webSection = sr.webResults
-          .map((r) => `- ${r.title}: ${r.snippet} (${r.url})`)
-          .join("\n");
-        const researchSection = sr.researchResults
-          .map((r) => `- ${r.title}: ${r.snippet} (${r.url})`)
-          .join("\n");
-        return `Query: "${sr.query}"\nWeb results:\n${webSection}\nResearch results:\n${researchSection}`;
-      })
-      .join("\n\n");
+    for (let step = 0; step < maxSteps; step++) {
+      const choice = await this.callWatsonxAPI(conversation, {
+        ...options,
+        tools: watsonxTools,
+      });
+      const message = choice.message;
+      lastAssistantText = message.content ?? lastAssistantText;
 
-    // Inject search results into system prompt
-    const enhancedPrompt = `${systemPrompt}\n\n# Search results (pre-fetched)\n${searchContext}`;
+      const toolCalls = message.tool_calls ?? [];
+      if (toolCalls.length === 0) {
+        return message.content ?? "";
+      }
 
-    return this.callWatsonxAPI(
-      [{ role: "system", content: enhancedPrompt }, ...messages],
-      options
-    );
-  }
+      // Echo the assistant's tool_calls into the conversation.
+      conversation.push({
+        role: "assistant",
+        content: message.content ?? "",
+        tool_calls: toolCalls,
+      });
 
-  /**
-   * Extract meaningful search queries from user message.
-   * Simple keyword extraction — extracts topic-related terms.
-   */
-  private extractSearchQueries(content: string): string[] {
-    // Extract key terms for search — look for problem/solution statements
-    const queries: string[] = [];
+      // Dispatch each tool call in parallel; preserve order.
+      const toolResults = await Promise.all(
+        toolCalls.map(async (call) => {
+          const tool = tools.find((t) => t.name === call.function.name);
+          if (!tool) {
+            return {
+              tool_call_id: call.id,
+              content: JSON.stringify({ error: `unknown_tool:${call.function.name}` }),
+            };
+          }
+          let parsedArgs: Record<string, unknown>;
+          try {
+            parsedArgs = JSON.parse(call.function.arguments || "{}");
+          } catch {
+            return {
+              tool_call_id: call.id,
+              content: JSON.stringify({ error: "invalid_arguments_json" }),
+            };
+          }
+          try {
+            const result = await tool.execute(parsedArgs);
+            return { tool_call_id: call.id, content: result };
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            return {
+              tool_call_id: call.id,
+              content: JSON.stringify({ error: message }),
+            };
+          }
+        })
+      );
 
-    // Look for labeled inputs
-    const problemMatch = content.match(/(?:problem|cleanedStatement|problemStatement)[:\s]+(.+?)(?:\n|$)/i);
-    if (problemMatch) {
-      const topic = problemMatch[1].trim().slice(0, 100);
-      queries.push(`${topic} market size 2024`);
-      queries.push(`${topic} startup funding`);
-      queries.push(`${topic} existing solutions competitors`);
+      for (const r of toolResults) {
+        conversation.push({
+          role: "tool",
+          tool_call_id: r.tool_call_id,
+          content: r.content,
+        });
+      }
     }
 
-    const solutionMatch = content.match(/(?:solution|direction)[:\s]+(.+?)(?:\n|$)/i);
-    if (solutionMatch) {
-      const topic = solutionMatch[1].trim().slice(0, 100);
-      queries.push(`${topic} existing product startup`);
-      queries.push(`${topic} development cost time to build`);
-    }
-
-    // Fallback: use first 100 chars as generic query
-    if (queries.length === 0) {
-      queries.push(content.slice(0, 100).trim());
-    }
-
-    return queries.slice(0, 4); // Max 4 queries
+    // Hit step ceiling. Force the model to produce a final answer using what it has.
+    conversation.push({
+      role: "user",
+      content:
+        "You have hit the tool-call limit. Produce your final answer now using only " +
+        "the information already gathered. Do not call any more tools.",
+    });
+    const final = await this.callWatsonxAPI(conversation, options);
+    return final.message.content ?? lastAssistantText;
   }
 }
 

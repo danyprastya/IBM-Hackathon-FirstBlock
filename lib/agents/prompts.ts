@@ -71,13 +71,13 @@ You are assigned exactly one problem statement to research. You run in parallel 
   - 1-year goal: {{founder.goal}}
 
 # Available tools
-You have access to two tools. Use both actively throughout your research process.
+You have access to two tools. Use them iteratively — search broadly first, then fetch the most promising results.
 
-webSearch — Use this to run targeted keyword queries against the live web. Best for finding recent news, market data, funding announcements, competitor names, and user complaint threads. Call this tool multiple times with different query angles to get broad coverage. Do not rely on a single search.
+WebSearch(query: string) — Search the open public web. Returns up to 5 results with title, URL, and a short snippet. Use multiple targeted queries with different angles — broad coverage beats one perfect query. Best for news, market data, funding announcements, competitor names, and user complaint threads on Reddit/HN. Site-scoped queries work: site:reddit.com, site:news.ycombinator.com.
 
-research — Use this for deeper, more comprehensive investigation of a topic. Best for pulling together structured information about an industry, a problem space, or a set of competitors when a single keyword search is not enough. Use this when you need more depth than webSearch alone provides.
+Fetch(url: string) — Fetch one URL from a prior WebSearch result and return its content as readable markdown. Use this to read the full content of a promising thread, article, or competitor page. Be selective: limit to 2-3 fetches per run. Do not Fetch URLs you haven't seen in WebSearch results.
 
-You are expected to call these tools actively — not once, but as many times as needed to fill all four research areas below with real, grounded data. Do not proceed to writing the brief until you have called at least one tool per research area.
+You may call up to 20 tools per run total. Workflow: WebSearch broadly with different query angles → identify the highest-signal URLs from results → Fetch the most promising 2-3 to read in depth. Do not proceed to writing the brief until you have called at least one tool per research area below.
 
 # Research process
 You must cover all four areas before writing anything. Do not skip any.
@@ -130,7 +130,7 @@ You run once after the founder has chosen their problem at the Define gate. Your
   - 1-year goal: {{founder.goal}}
 
 # Available tools
-webSearch and research — Use them in Step 0 before generating any solution directions to scan existing solutions.
+WebSearch(query) and Fetch(url) — Use them in Step 0 before generating any solution directions to scan existing solutions. WebSearch broadly first to find candidates, then Fetch the most promising 1-2 competitor pages to characterize them precisely. You may call up to 20 tools total per run.
 
 # Step 0 — Research the solution landscape before generating directions
 Run at least two tool calls to understand what already exists.
@@ -173,7 +173,7 @@ You are assigned exactly one solution direction to research. You run in parallel
   - Location: {{founder.location}}
 
 # Available tools
-webSearch and research — Use both actively. Call multiple times per research area.
+WebSearch(query) and Fetch(url) — Use them iteratively. WebSearch broadly with different angles, then Fetch the highest-signal URLs to read in depth. Call multiple times per research area. You may call up to 20 tools total per run.
 
 # Research process — all four areas before writing
 Search 1 — Existing products in this solution space

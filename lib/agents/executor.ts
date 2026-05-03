@@ -1,30 +1,24 @@
 // Agent execution engine
-// Uses AIProvider interface — supports both Watsonx REST and AI SDK
+// Drives Watsonx via AIProvider; tool-using agents get the SEARCH_TOOLS
+// registry which Watsonx's tool loop will dispatch through.
 
 import type {
   AgentConfig,
   AgentExecutionContext,
   AgentResult,
   AIProvider,
-  SearchToolProvider,
 } from "./types";
 import { AGENT_PROMPTS, UPSTREAM_CONTEXT_TEMPLATE } from "./prompts";
 import { WatsonxProvider } from "./providers/watsonx";
-import { JinaSearchProvider } from "./tools";
+import { SEARCH_TOOLS } from "@/lib/agent-tools";
 
-// ─── Default providers (swappable) ────────────────────────────────
+// ─── Default provider (swappable for tests) ───────────────────────
 
 let aiProvider: AIProvider = new WatsonxProvider();
-let searchProvider: SearchToolProvider = new JinaSearchProvider();
 
-/** Swap AI provider — call this when AI SDK provider is ready */
+/** Swap AI provider — useful for tests or future provider migrations. */
 export function setAIProvider(provider: AIProvider) {
   aiProvider = provider;
-}
-
-/** Swap search provider — call this when real search is ready */
-export function setSearchProvider(provider: SearchToolProvider) {
-  searchProvider = provider;
 }
 
 // ─── Executor ─────────────────────────────────────────────────────
@@ -50,11 +44,11 @@ export class AgentExecutor {
       let output: string;
 
       if (config.needsTools) {
-        // Research agents — use tool-enabled generation
+        // Research agents — real Watsonx tool-calling loop, max 20 steps.
         output = await aiProvider.generateWithTools(
           systemPrompt,
           messages,
-          searchProvider,
+          SEARCH_TOOLS,
           { maxTokens: config.maxTokens, temperature: config.temperature }
         );
       } else {
