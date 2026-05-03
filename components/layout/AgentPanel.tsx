@@ -65,9 +65,30 @@ export function AgentPanel({ collapsed, onToggle }: AgentPanelProps) {
         if (stage.key === "scope") return "Confirm scope + metrics";
         return "Awaiting your decision";
       case "passed":
-        return null; // No gate message needed
+        return null;
       default:
         return null;
+    }
+  };
+
+  const getGateHref = (stageKey: string): string => {
+    if (!problemId) return "#";
+    switch (stageKey) {
+      case "define": return `/workspace/idea/${problemId}/review`;
+      case "develop": return `/workspace/idea/${problemId}/solutions`;
+      case "scope": return `/workspace/idea/${problemId}/scope`;
+      case "deliver": return `/workspace/idea/${problemId}/prd`;
+      default: return `/workspace/idea/${problemId}`;
+    }
+  };
+
+  const getGateButtonLabel = (stageKey: string): string => {
+    switch (stageKey) {
+      case "define": return "Review Briefs";
+      case "develop": return "Compare Solutions";
+      case "scope": return "Confirm Scope";
+      case "deliver": return "View PRD";
+      default: return "Review";
     }
   };
 
@@ -187,10 +208,10 @@ export function AgentPanel({ collapsed, onToggle }: AgentPanelProps) {
                         </p>
                         <p className="text-xs text-text-primary">{gateLabel}</p>
                         <Link
-                          href={`/workspace/idea/${problemId}/review`}
+                          href={getGateHref(stage.key)}
                           className="mt-2 block w-full py-2 rounded-lg bg-accent-primary text-white text-xs font-semibold hover:bg-accent-hover transition-colors text-center"
                         >
-                          Review Briefs
+                          {getGateButtonLabel(stage.key)}
                         </Link>
                       </div>
                     )}
