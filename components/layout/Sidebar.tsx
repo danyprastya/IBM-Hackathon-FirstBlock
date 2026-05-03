@@ -63,7 +63,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           problems.filter(
             (p) =>
               p.rawInput.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              p.cleanedStatement.toLowerCase().includes(searchQuery.toLowerCase())
+              p.title.toLowerCase().includes(searchQuery.toLowerCase())
           ),
         ]).filter(([, problems]) => (problems as Problem[]).length > 0)
       )
@@ -176,7 +176,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                   <div className="ml-4 border-l border-gray-100 pl-2">
                     {ideas.map((idea) => {
                       const title =
-                        idea.cleanedStatement ||
+                        idea.title ||
                         idea.rawInput.slice(0, 50) + (idea.rawInput.length > 50 ? "…" : "");
                       return (
                         <Link

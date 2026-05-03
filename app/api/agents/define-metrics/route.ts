@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     ]);
 
     const founderProfile = userDoc.data()?.onboarding || null;
-    const chosenProblem = problemDoc.data()?.cleanedStatement || "";
+    const chosenProblem = problemDoc.data()?.rawInput || "";
     const chosenSolution = solDoc.data()?.direction || "";
     const compactedContext = scDoc.data()?.compactedContext || "";
 

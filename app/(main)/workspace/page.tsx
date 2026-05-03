@@ -71,7 +71,7 @@ function MobileHome() {
         ) : (
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-6">
             {recents.map((item) => {
-              const title = item.cleanedStatement || item.rawInput.slice(0, 50) + (item.rawInput.length > 50 ? "…" : "");
+              const title = item.title || item.rawInput.slice(0, 50) + (item.rawInput.length > 50 ? "…" : "");
               return (
                 <Link key={item.id} href={`/workspace/idea/${item.id}`} className="min-w-[160px] p-4 bg-white border border-gray-200 rounded-xl flex-shrink-0 card-hover cursor-pointer">
                   <p className="text-xs text-text-muted">{item.createdAt.toLocaleDateString()}</p>
@@ -164,7 +164,7 @@ function DesktopHome() {
         ) : (
           <div className="flex flex-col gap-2 stagger-fade">
             {recents.map((item) => {
-              const title = item.cleanedStatement || item.rawInput.slice(0, 60) + (item.rawInput.length > 60 ? "…" : "");
+              const title = item.title || item.rawInput.slice(0, 60) + (item.rawInput.length > 60 ? "…" : "");
               return (
                 <Link key={item.id} href={`/workspace/idea/${item.id}`} className="flex items-center justify-between p-4 rounded-xl border border-gray-200 hover:border-accent-primary hover:bg-input-bg transition-all card-hover cursor-pointer">
                   <div className="flex items-center gap-3">

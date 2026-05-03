@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     ]);
 
     const founderProfile = userDoc.data()?.onboarding || null;
-    const chosenProblem = problemDoc.data()?.cleanedStatement || "";
+    const chosenProblem = problemDoc.data()?.rawInput || "";
     const compactedContext = researchData?.compactedContext || "";
 
     // Create solutionCollection doc with "running" status

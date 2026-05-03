@@ -6,21 +6,24 @@ import {
   query,
   orderBy,
   onSnapshot,
-  addDoc,
-  serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/contexts/AuthContext";
-import type { ProblemDocument } from "@/lib/firebase/collections";
 
 export interface Problem {
   id: string;
+  /** Verbatim founder text. Never rewritten. */
   rawInput: string;
-  cleanedStatement: string;
+  /**
+   * Short display label. AI generates once on creation; founder can rename.
+   * Empty string until the title-generation task completes — UI should fall
+   * back to a truncated rawInput when this is empty.
+   */
+  title: string;
   inputType: "text" | "voice";
   createdAt: Date;
-  /** Folder label — derived from user tags or default "Drafts" */
+  /** Folder label — defaults to "Drafts". */
   folder?: string;
 }
 
@@ -51,7 +54,9 @@ export function useProblems() {
           return {
             id: doc.id,
             rawInput: data.rawInput || "",
-            cleanedStatement: data.cleanedStatement || "",
+            // Migration-safe: prefer new `title`; fall back to legacy
+            // `cleanedStatement` if old docs still carry it; else "".
+            title: data.title || data.cleanedStatement || "",
             inputType: data.inputType || "text",
             createdAt: data.createdAt instanceof Timestamp
               ? data.createdAt.toDate()
@@ -73,27 +78,64 @@ export function useProblems() {
     return () => unsub();
   }, [user?.uid]);
 
-  // Create a new problem (raw dump)
+  /**
+   * Create a new problem via the server route. The route persists rawInput
+   * verbatim and fires a Trigger.dev task to generate the title in the
+   * background — the snapshot listener will deliver the title when ready.
+   */
   const createProblem = useCallback(
     async (rawInput: string, folder?: string): Promise<string | null> => {
       if (!user?.uid) return null;
 
       try {
-        const docRef = await addDoc(
-          collection(db, "users", user.uid, "problems"),
-          {
+        const res = await fetch("/api/agents/problems", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
             rawInput,
-            cleanedStatement: "", // AI will clean this later
-            inputType: "text" as const,
-            folder: folder || "Drafts",
-            createdAt: serverTimestamp(),
-          }
-        );
-        return docRef.id;
+            inputType: "text",
+            ...(folder ? { folder } : {}),
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `create_problem_${res.status}`);
+        }
+        const json = (await res.json()) as { problem: { id: string } };
+        return json.problem.id;
       } catch (err) {
         console.error("Create problem error:", err);
         setError((err as Error).message);
         return null;
+      }
+    },
+    [user?.uid]
+  );
+
+  /** Founder rename — title and/or folder. rawInput is intentionally not editable here. */
+  const updateProblem = useCallback(
+    async (
+      problemId: string,
+      patch: { title?: string; folder?: string }
+    ): Promise<boolean> => {
+      if (!user?.uid) return false;
+      try {
+        const res = await fetch(`/api/agents/problems/${problemId}`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `update_problem_${res.status}`);
+        }
+        return true;
+      } catch (err) {
+        console.error("Update problem error:", err);
+        setError((err as Error).message);
+        return false;
       }
     },
     [user?.uid]
@@ -113,6 +155,7 @@ export function useProblems() {
     loading,
     error,
     createProblem,
+    updateProblem,
   };
 }
 

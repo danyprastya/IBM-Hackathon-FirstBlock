@@ -77,9 +77,20 @@ export const problemInputSchema = z.object({
     .min(1, "Problem description is required")
     .max(2000, "Problem too long (max 2000 characters)"),
   inputType: z.enum(["text", "voice"]).default("text"),
+  folder: z.string().min(1).max(100).optional(),
 });
 
 export type ProblemInput = z.infer<typeof problemInputSchema>;
+
+// Founder rename of an existing problem's title or folder.
+export const problemUpdateSchema = z.object({
+  title: z.string().min(1).max(120).optional(),
+  folder: z.string().min(1).max(100).optional(),
+}).refine((data) => data.title !== undefined || data.folder !== undefined, {
+  message: "At least one of title or folder must be provided",
+});
+
+export type ProblemUpdateInput = z.infer<typeof problemUpdateSchema>;
 
 // Research brief (from ProblemResearchAgent output)
 export const researchBriefSchema = z.object({

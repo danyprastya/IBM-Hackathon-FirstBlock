@@ -234,8 +234,16 @@ export interface FounderDecision {
 /** users/{userId}/problems/{problemId} */
 export interface ProblemDocument {
   id: string;
+  /** Verbatim founder text. Never rewritten by AI. */
   rawInput: string;
-  cleanedStatement: string;
+  /**
+   * Short display label. AI generates this once on creation, then never touches
+   * it again. Founder may rename via PATCH /api/agents/problems/:id.
+   * Empty string until title-generation task completes — UI falls back to truncated rawInput.
+   */
+  title: string;
+  /** String label for organization (e.g. "Drafts", "Validated"). User-supplied. */
+  folder?: string;
   inputType: "text" | "voice";
   createdAt: Date;
 }

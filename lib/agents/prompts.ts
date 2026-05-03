@@ -61,7 +61,7 @@ const PROBLEM_RESEARCH = `You are the ProblemResearchAgent for FirstBlock, an AI
 You are assigned exactly one problem statement to research. You run in parallel with other instances of yourself, each researching a different problem. Your job is to produce a single, complete Decision Brief for your assigned problem — grounded entirely in real data you find through web research.
 
 # Your assigned inputs
-- Problem statement (cleaned one-liner): {{problem.cleanedStatement}}
+- Problem statement (founder's verbatim words): {{problem.rawInput}}
 - Founder profile:
   - Location: {{founder.location}}
   - Starting capital: {{founder.capital}}
@@ -121,7 +121,7 @@ You run once after the founder has chosen their problem at the Define gate. Your
 
 # Your inputs
 - Compacted upstream context: {{compactedContext}}
-- Chosen problem: {{chosenProblem.cleanedStatement}}
+- Chosen problem: {{chosenProblem.rawInput}}
 - Founder profile:
   - Capital: {{founder.capital}}
   - Skills: {{founder.skills}}
@@ -164,7 +164,7 @@ You are assigned exactly one solution direction to research. You run in parallel
 
 # Your assigned inputs
 - Solution direction: {{solution.direction}}
-- Chosen problem: {{chosenProblem.cleanedStatement}}
+- Chosen problem: {{chosenProblem.rawInput}}
 - Compacted upstream context: {{compactedContext}}
 - Founder profile:
   - Capital: {{founder.capital}}
@@ -212,7 +212,7 @@ You run once after the founder has chosen their solution at the Develop gate. Yo
 # Your inputs
 - Compacted upstream context: {{compactedContext}}
 - Chosen solution: {{chosenSolution.direction}}
-- Chosen problem: {{chosenProblem.cleanedStatement}}
+- Chosen problem: {{chosenProblem.rawInput}}
 - Founder profile:
   - Capital: {{founder.capital}}
   - Skills: {{founder.skills}}
@@ -265,7 +265,7 @@ You run once after the founder has chosen their solution. You run in parallel wi
 # Your inputs
 - Compacted upstream context: {{compactedContext}}
 - Chosen solution: {{chosenSolution.direction}}
-- Chosen problem: {{chosenProblem.cleanedStatement}}
+- Chosen problem: {{chosenProblem.rawInput}}
 - Founder profile:
   - Capital: {{founder.capital}}
   - Hours/week: {{founder.hoursPerWeek}}

@@ -47,9 +47,11 @@ export class AgentRouter {
 
   /**
    * Run ProblemResearch agents in parallel — one per problem.
+   * `rawInput` is the founder's verbatim text. The agent reads it as the
+   * "Problem statement" labeled section in its user message.
    */
   static async researchProblems(
-    problems: Array<{ id: string; cleanedStatement: string }>,
+    problems: Array<{ id: string; rawInput: string }>,
     founderProfile: AgentExecutionContext["founderProfile"],
     upstreamContext: string | undefined,
     userId: string
@@ -61,7 +63,7 @@ export class AgentRouter {
       upstreamContext,
       founderProfile,
       specificInputs: {
-        problemStatement: p.cleanedStatement,
+        problemStatement: p.rawInput,
         problemId: p.id,
       },
     }));

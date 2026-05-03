@@ -25,7 +25,7 @@ export const problemResearchTask = task({
       const founderProfile = userSnap.data()?.onboarding ?? null;
 
       const results = await AgentRouter.researchProblems(
-        [{ id: problemId, cleanedStatement: problemStatement }],
+        [{ id: problemId, rawInput: problemStatement }],
         founderProfile,
         undefined,
         userId

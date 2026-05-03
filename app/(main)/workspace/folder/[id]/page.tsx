@@ -21,7 +21,7 @@ function MobileFolderView({ folderName }: { folderName: string }) {
     ? ideas.filter(
         (p) =>
           p.rawInput.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.cleanedStatement.toLowerCase().includes(searchQuery.toLowerCase())
+          p.title.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : ideas;
 
@@ -85,7 +85,7 @@ function MobileFolderView({ folderName }: { folderName: string }) {
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {filtered.map((idea) => {
-              const title = idea.cleanedStatement || idea.rawInput.slice(0, 50) + (idea.rawInput.length > 50 ? "…" : "");
+              const title = idea.title || idea.rawInput.slice(0, 50) + (idea.rawInput.length > 50 ? "…" : "");
               return (
                 <Link key={idea.id} href={`/workspace/idea/${idea.id}`} className="p-4 bg-white border border-gray-200 rounded-xl">
                   <p className="text-xs text-text-muted">{idea.createdAt.toLocaleDateString()}</p>
@@ -142,7 +142,7 @@ function DesktopFolderView({ folderName }: { folderName: string }) {
         ) : (
           <div className="flex flex-col gap-2">
             {ideas.map((idea) => {
-              const title = idea.cleanedStatement || idea.rawInput.slice(0, 60) + (idea.rawInput.length > 60 ? "…" : "");
+              const title = idea.title || idea.rawInput.slice(0, 60) + (idea.rawInput.length > 60 ? "…" : "");
               return (
                 <Link
                   key={idea.id}

@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     const sanitizedStatement = sanitizeText(problemStatement, 2000);
 
     const results = await AgentRouter.researchProblems(
-      [{ id: problemId, cleanedStatement: sanitizedStatement }],
+      [{ id: problemId, rawInput: sanitizedStatement }],
       founderProfile,
       undefined, // No upstream context for first research
       userId

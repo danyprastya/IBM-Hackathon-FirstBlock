@@ -27,7 +27,9 @@ function useIdeaData(ideaId: string) {
           setProblem({
             id: snap.id,
             rawInput: data.rawInput || "",
-            cleanedStatement: data.cleanedStatement || "",
+            // Migration-safe: prefer new `title`, fall back to legacy `cleanedStatement`.
+            title: data.title || data.cleanedStatement || "",
+            folder: data.folder,
             inputType: data.inputType || "text",
             createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
           });
@@ -146,7 +148,7 @@ function MobileIdeaDocument({ ideaId }: { ideaId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           problemId: ideaId,
-          problemStatement: problem.cleanedStatement || problem.rawInput,
+          problemStatement: problem.rawInput,
         }),
       });
       if (!res.ok) {
@@ -175,7 +177,7 @@ function MobileIdeaDocument({ ideaId }: { ideaId: string }) {
     );
   }
 
-  const title = problem.cleanedStatement || problem.rawInput.slice(0, 60);
+  const title = problem.title || problem.rawInput.slice(0, 60);
 
   return (
     <div className="min-h-screen bg-white flex flex-col md:hidden">
@@ -255,7 +257,7 @@ function DesktopIdeaDocument({ ideaId }: { ideaId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           problemId: ideaId,
-          problemStatement: problem.cleanedStatement || problem.rawInput,
+          problemStatement: problem.rawInput,
         }),
       });
       if (!res.ok) {
@@ -284,7 +286,7 @@ function DesktopIdeaDocument({ ideaId }: { ideaId: string }) {
     );
   }
 
-  const title = problem.cleanedStatement || problem.rawInput.slice(0, 60);
+  const title = problem.title || problem.rawInput.slice(0, 60);
 
   return (
     <div className="flex-1 overflow-y-auto">

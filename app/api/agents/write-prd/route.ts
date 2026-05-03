@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     const compactedContext = scDoc.data()?.compactedContext || "";
 
     const problemBrief = researchData?.brief
-      ? `Problem: ${problemDoc.data()?.cleanedStatement}\nMarket signal: ${researchData.brief.marketSignal}\nPain evidence: ${researchData.brief.painEvidence}\nCompetition: ${researchData.brief.competition} — ${researchData.brief.competitionNote}\nVerdict: ${researchData.brief.aiVerdict}\nReason: ${researchData.brief.aiReason}`
+      ? `Problem: ${problemDoc.data()?.rawInput}\nMarket signal: ${researchData.brief.marketSignal}\nPain evidence: ${researchData.brief.painEvidence}\nCompetition: ${researchData.brief.competition} — ${researchData.brief.competitionNote}\nVerdict: ${researchData.brief.aiVerdict}\nReason: ${researchData.brief.aiReason}`
       : "";
 
     const solutionBrief = solData?.brief
